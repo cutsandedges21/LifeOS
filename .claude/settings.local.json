@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(grep -E \"^\\(react|react-dom\\)$\")",
+      "Bash(sed -n '1,10p' node_modules/.vite/deps/chunk-BCXODTBQ.js)",
+      "Bash(sed -n '1,10p' node_modules/.vite/deps/react.js)",
+      "Bash(sed -n '1,10p' node_modules/.vite/deps/react-dom.js)",
+      "Bash(sed -n '1,10p' node_modules/.vite/deps/react-dom_client.js)",
+      "Bash(taskkill //F //IM node.exe)",
+      "Bash(curl -sS http://localhost:3000/)",
+      "Bash(curl -sS -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/src/main.jsx)",
+      "Bash(curl -sS http://localhost:3000/ -o /dev/null -w \"html: %{http_code}\\\\n\")",
+      "Bash(curl -sS http://localhost:3000/src/main.jsx -o /dev/null -w \"main.jsx: %{http_code}\\\\n\")",
+      "Bash(curl -sS http://localhost:3000/src/App.jsx -o /dev/null -w \"App.jsx: %{http_code}\\\\n\")",
+      "Bash(curl -sS http://localhost:3000/src/hooks/useTheme.js -o /dev/null -w \"useTheme: %{http_code}\\\\n\")",
+      "Bash(curl -sS http://localhost:3000/node_modules/.vite/deps/react.js -o /dev/null -w \"react: %{http_code}\\\\n\")",
+      "Bash(curl -sS http://localhost:3000/src/App.jsx)",
+      "Bash(curl -sS http://localhost:3000/src/hooks/useTheme.js)",
+      "Bash(npm ls *)",
+      "Bash(sed -i 's|chromium-1217/chrome-win/chrome.exe|chromium-1217/chrome-win64/chrome.exe|' /tmp/check-app.cjs)",
+      "Bash(node /tmp/check-app.cjs)"
+    ]
+  }
+}
