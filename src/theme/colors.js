@@ -1,30 +1,73 @@
-// Theme colors for light and dark mode
-export const lightColors = {
-  background: "#ffffff",
-  card: "#f5f5f5",
-  input: "#e8e8e8",
-  border: "#d0d0d0",
-  text: "#1a1a1a",
-  textMuted: "#666666",
-  accent: "#f59e0b",
-  success: "#2ddb81",
+// Glassmorphism theme colors for LifeOS v2
+
+// Base colors
+const baseColors = {
+  success: "#4ade80",
+  warning: "#fbbf24",
   danger: "#ef4444",
-  warning: "#f59e0b",
   info: "#38bdf8",
 };
 
+// Page-specific gradients
+const pageGradients = {
+  main: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+  finances: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+  health: "linear-gradient(135deg, #ec4899 0%, #be185d 100%)",
+  gym: "linear-gradient(135deg, #f97316 0%, #ea580c 100%)",
+  brand: "linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)",
+};
+
+// Glassmorphism card styles
+const glassCard = {
+  background: "rgba(255, 255, 255, 0.15)",
+  backdropFilter: "blur(10px)",
+  border: "1px solid rgba(255, 255, 255, 0.2)",
+};
+
+// Light mode colors
+export const lightColors = {
+  ...baseColors,
+  background: "#f5f5f7",
+  card: "#ffffff",
+  input: "#f0f0f0",
+  border: "#e0e0e0",
+  text: "#1a1a1a",
+  textMuted: "#666666",
+  accent: "#667eea",
+  glass: {
+    background: "rgba(255, 255, 255, 0.7)",
+    backdropFilter: "blur(10px)",
+    border: "1px solid rgba(255, 255, 255, 0.5)",
+  },
+  gradients: pageGradients,
+};
+
+// Dark mode colors (primary for glassmorphism)
 export const darkColors = {
-  background: "#000000",
+  ...baseColors,
+  background: "#0a0a0a",
   card: "#0d0d0d",
   input: "#111111",
   border: "#222222",
   text: "#ffffff",
-  textMuted: "#555555",
-  accent: "#f59e0b",
-  success: "#2ddb81",
-  danger: "#ef4444",
-  warning: "#f59e0b",
-  info: "#38bdf8",
+  textMuted: "rgba(255, 255, 255, 0.6)",
+  accent: "#667eea",
+  glass: {
+    background: "rgba(255, 255, 255, 0.15)",
+    backdropFilter: "blur(10px)",
+    border: "1px solid rgba(255, 255, 255, 0.2)",
+  },
+  glassHighlighted: {
+    background: "rgba(255, 255, 255, 0.2)",
+    backdropFilter: "blur(10px)",
+    border: "2px solid rgba(255, 255, 255, 0.3)",
+  },
+  glassDimmed: {
+    background: "rgba(255, 255, 255, 0.1)",
+    backdropFilter: "blur(10px)",
+    border: "1px solid rgba(255, 255, 255, 0.15)",
+  },
+  gradients: pageGradients,
 };
 
 export const spacing = {

@@ -7,7 +7,8 @@ import { FinancesPage } from "./components/FinancesPage.jsx";
 import { BrandPage } from "./components/BrandPage.jsx";
 import { HealthPage } from "./components/HealthPage.jsx";
 import { GymPage } from "./components/GymPage.jsx";
-import { wakeHrs, partOfDay, dayStr, timeStr } from "./utils/formatters.js";
+import { getPageGradient } from "./theme/index.js";
+import { dayStr, timeStr } from "./utils/formatters.js";
 
 const GREETINGS = [
   "Let's lock in,",
@@ -20,42 +21,48 @@ const GREETINGS = [
 ];
 
 // Google Gemini API for Overseer
-async function askOverseer(messages, ctx) {
-  const apiKey = "AIzaSyCHvyjkg7scj4AaCE5bupm-d4y73-Sc7lc";
+async function askOverseer(messages, ctx, retries = 2) {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
-  // Safe stringify for context
   let ctxStr = "";
   try {
     ctxStr = JSON.stringify(ctx);
   } catch (e) {
-    // Fallback if circular
     ctxStr = "{ error: 'context too complex' }";
   }
 
   const sys = `You are THE OVERSEER — brutally honest accountability AI. You know this person's full dashboard context: ${ctxStr}. 2-4 sentences max. Direct. No fluff. Call them out when slipping. Brief praise for real wins.`;
 
   try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: messages.map(m => ({
-          role: m.role === "ai" || m.role === "assistant" ? "model" : "user",
-          parts: [{ text: String(m.content || m.text || "") }]
-        })),
-        system_instruction: {
-          parts: [{ text: sys }]
-        },
-        generationConfig: {
-          maxOutputTokens: 200,
-          temperature: 0.7,
-        }
-      }),
-    });
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: messages.map((m) => ({
+            role: m.role === "ai" || m.role === "assistant" ? "model" : "user",
+            parts: [{ text: String(m.content ?? m.text ?? "") }],
+          })),
+          system_instruction: { parts: [{ text: sys }] },
+          generationConfig: { maxOutputTokens: 200, temperature: 0.7 },
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      if (res.status === 429 && retries > 0) {
+        console.warn("Rate limited, retrying in 5s...");
+        await new Promise((r) => setTimeout(r, 5000));
+        return askOverseer(messages, ctx, retries - 1);
+      }
+      throw new Error(`HTTP error: ${res.status}`);
+    }
+
     const d = await res.json();
     if (d.error) {
       console.error("Gemini Error:", d.error);
-      return `[Overseer Error: ${d.error.message}]`;
+      return `Overseer Error: ${d.error.message}`;
     }
     return d.candidates?.[0]?.content?.parts?.[0]?.text ?? "…";
   } catch (error) {
@@ -138,7 +145,6 @@ export default function LifeOS() {
     const borderRadius = currentTheme.borderRadius;
     const typography = currentTheme.typography;
 
-    // Set CSS variables
     Object.entries(colors).forEach(([key, value]) => {
       root.style.setProperty(`--color-${key}`, value);
     });
@@ -165,7 +171,11 @@ export default function LifeOS() {
     if (!msg || overseerLoading) return;
     const userMsg = { role: "user", content: msg };
     const newLog = [...state.overseerLog, { role: "user", text: msg }];
-    setState((prev) => ({ ...prev, overseerLog: newLog, overseerInput: msgOverride ? prev.overseerInput : "" }));
+    setState((prev) => ({
+      ...prev,
+      overseerLog: newLog,
+      overseerInput: msgOverride ? prev.overseerInput : "",
+    }));
     setOverseerLoading(true);
 
     const completedGoals = state.goals.filter((g) => g.done).length;
@@ -188,24 +198,26 @@ export default function LifeOS() {
     ];
 
     const reply = await askOverseer(apiMessages, ctx);
-    setState((prev) => ({ ...prev, overseerLog: [...prev.overseerLog, { role: "ai", text: reply }] }));
+    setState((prev) => ({
+      ...prev,
+      overseerLog: [...prev.overseerLog, { role: "ai", text: reply }],
+    }));
     setOverseerLoading(false);
   };
 
-  // Derived values
-  const { pct, leftStr } = wakeHrs(state.settings);
-  const pod = partOfDay(pct);
+  // Get page gradient
+  const pageGradient = getPageGradient(tab);
 
   if (!isLoaded) {
     return (
       <div
         style={{
           minHeight: "100vh",
-          background: "var(--color-background)",
+          background: pageGradient,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          color: "var(--color-text)",
+          color: "#fff",
           fontFamily: "var(--font-sans)",
         }}
       >
@@ -218,9 +230,9 @@ export default function LifeOS() {
     <div
       style={{
         minHeight: "100vh",
-        background: "var(--color-background)",
+        background: pageGradient,
         fontFamily: "var(--font-sans)",
-        color: "var(--color-text)",
+        color: "#fff",
         paddingBottom: "70px",
       }}
     >
@@ -234,14 +246,20 @@ export default function LifeOS() {
         }}
       >
         <div style={{ display: "flex", gap: "var(--spacing-sm)", alignItems: "center" }}>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-xs)", color: "var(--color-text-muted)" }}>
+          <span
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: "var(--font-xs)",
+              color: "rgba(255, 255, 255, 0.7)",
+            }}
+          >
             {dayStr()}
           </span>
           <span
             style={{
               fontFamily: "var(--font-mono)",
               fontSize: "var(--font-xs)",
-              color: "var(--color-accent)",
+              color: "rgba(255, 255, 255, 0.9)",
               fontWeight: 600,
             }}
           >
@@ -249,17 +267,26 @@ export default function LifeOS() {
           </span>
         </div>
         <div style={{ display: "flex", gap: "14px", alignItems: "center" }}>
-          <span style={{ fontSize: "var(--font-sm)", color: "var(--color-text-muted)" }}>{timeStr()}</span>
+          <span style={{ fontSize: "var(--font-sm)", color: "rgba(255, 255, 255, 0.7)" }}>
+            {timeStr()}
+          </span>
           <motion.button
             onClick={toggleTheme}
             whileTap={{ scale: 0.9 }}
             whileHover={{ rotate: 15 }}
             style={{
-              background: "none",
-              border: "none",
+              background: "rgba(255, 255, 255, 0.2)",
+              backdropFilter: "blur(10px)",
+              border: "1px solid rgba(255, 255, 255, 0.3)",
+              borderRadius: "50%",
               cursor: "pointer",
               fontSize: "18px",
-              padding: 0,
+              padding: "8px",
+              width: "40px",
+              height: "40px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
             {theme === "dark" ? "☀️" : "🌙"}
@@ -268,43 +295,75 @@ export default function LifeOS() {
       </div>
 
       {/* Health Bar (top strip) */}
-      <div style={{ margin: "10px 18px 0", display: "flex", gap: "14px", alignItems: "center", flexWrap: "wrap" }}>
+      <div
+        style={{
+          margin: "10px 18px 0",
+          display: "flex",
+          gap: "14px",
+          alignItems: "center",
+          flexWrap: "wrap",
+        }}
+      >
         <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
           <svg width="28" height="28">
-            <circle cx="14" cy="14" r="11" fill="none" stroke="var(--color-border)" strokeWidth="3" />
+            <circle cx="14" cy="14" r="11" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="3" />
             <circle
               cx="14"
               cy="14"
               r="11"
               fill="none"
-              stroke={state.whoop.recovery >= 67 ? "var(--color-success)" : state.whoop.recovery >= 34 ? "var(--color-accent)" : "var(--color-danger)"}
+              stroke={
+                state.whoop.recovery >= 67
+                  ? "#4ade80"
+                  : state.whoop.recovery >= 34
+                  ? "#fbbf24"
+                  : "#ef4444"
+              }
               strokeWidth="3"
               strokeDasharray="69.1"
               strokeDashoffset={69.1 * (1 - state.whoop.recovery / 100)}
               strokeLinecap="round"
               transform="rotate(-90 14 14)"
             />
-            <text x="14" y="18" textAnchor="middle" fill="var(--color-text)" fontSize="9" fontWeight="700">
+            <text x="14" y="18" textAnchor="middle" fill="#fff" fontSize="9" fontWeight="700">
               {state.whoop.recovery}
             </text>
           </svg>
         </div>
         {[
-          { label: "SLEEP", val: `${state.whoop.sleep}%`, color: state.whoop.sleep >= 70 ? "var(--color-success)" : "var(--color-accent)" },
-          { label: "STRAIN", val: state.whoop.strain, color: "var(--color-text)" },
-          { label: "RHR", val: state.whoop.rhr, color: "var(--color-text)" },
+          { label: "SLEEP", val: `${state.whoop.sleep}%`, color: "#4ade80" },
+          { label: "STRAIN", val: state.whoop.strain, color: "#fff" },
+          { label: "RHR", val: state.whoop.rhr, color: "#fff" },
         ].map(({ label, val, color }) => (
           <div key={label} style={{ display: "flex", gap: "4px", alignItems: "baseline" }}>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--color-text-muted)" }}>{label}</span>
+            <span
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "9px",
+                color: "rgba(255, 255, 255, 0.6)",
+              }}
+            >
+              {label}
+            </span>
             <span style={{ fontSize: "13px", fontWeight: 700, color }}>{val}</span>
           </div>
         ))}
       </div>
 
       {/* Goals ticker */}
-      <div style={{ margin: "8px 18px 0", fontSize: "11px", color: "var(--color-text-muted)", display: "flex", gap: "6px" }}>
-        <span style={{ color: "var(--color-success)" }}>● GOALS</span>
-        <span style={{ color: "var(--color-text-muted)" }}>{state.goals.filter((g) => !g.done)[0]?.text ?? "All done!"}</span>
+      <div
+        style={{
+          margin: "8px 18px 0",
+          fontSize: "11px",
+          color: "rgba(255, 255, 255, 0.6)",
+          display: "flex",
+          gap: "6px",
+        }}
+      >
+        <span style={{ color: "#4ade80" }}>● GOALS</span>
+        <span style={{ color: "rgba(255, 255, 255, 0.6)" }}>
+          {state.goals.filter((g) => !g.done)[0]?.text ?? "All done!"}
+        </span>
       </div>
 
       {/* Page Content */}
@@ -317,7 +376,15 @@ export default function LifeOS() {
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.2 }}
           >
-            <MainPage state={state} setState={setState} pct={pct} pod={pod} leftStr={leftStr} overseerLoading={overseerLoading} sendMsg={sendMsg} chatRef={chatRef} greeting={greeting} />
+            <MainPage
+              state={state}
+              setState={setState}
+              pct={pct}
+              overseerLoading={overseerLoading}
+              sendMsg={sendMsg}
+              chatRef={chatRef}
+              greeting={greeting}
+            />
           </motion.div>
         )}
         {tab === "finances" && (
@@ -372,7 +439,13 @@ export default function LifeOS() {
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.2 }}
           >
-            <SettingsPage state={state} setState={setState} resetState={resetState} theme={theme} setThemeMode={setThemeMode} />
+            <SettingsPage
+              state={state}
+              setState={setState}
+              resetState={resetState}
+              theme={theme}
+              setThemeMode={setThemeMode}
+            />
           </motion.div>
         )}
       </AnimatePresence>
@@ -384,8 +457,9 @@ export default function LifeOS() {
           bottom: 0,
           left: 0,
           right: 0,
-          background: "var(--color-card)",
-          borderTop: "1px solid var(--color-border)",
+          background: "rgba(255, 255, 255, 0.15)",
+          backdropFilter: "blur(20px)",
+          borderTop: "1px solid rgba(255, 255, 255, 0.2)",
           display: "flex",
           justifyContent: "space-around",
           padding: "8px 0",
@@ -413,7 +487,7 @@ export default function LifeOS() {
               padding: "6px 12px",
               background: "none",
               border: "none",
-              color: tab === id ? "var(--color-text)" : "var(--color-text-muted)",
+              color: tab === id ? "#fff" : "rgba(255, 255, 255, 0.6)",
               fontFamily: "var(--font-sans)",
               fontSize: "10px",
               transition: "color 0.2s",
@@ -433,18 +507,30 @@ function SettingsPage({ state, setState, resetState, theme, setThemeMode }) {
 
   return (
     <div style={{ padding: "var(--spacing-lg)" }}>
-      <div style={{ fontSize: "var(--font-2xl)", fontWeight: 800, marginBottom: "var(--spacing-lg)" }}>Settings</div>
+      <div
+        style={{
+          fontSize: "var(--font-2xl)",
+          fontWeight: 800,
+          marginBottom: "var(--spacing-lg)",
+        }}
+      >
+        Settings
+      </div>
 
       {/* Theme */}
       <div
         style={{
-          background: "var(--color-card)",
+          background: "rgba(255, 255, 255, 0.15)",
+          backdropFilter: "blur(10px)",
           borderRadius: "var(--radius-lg)",
           padding: "var(--spacing-lg)",
           marginBottom: "var(--spacing-md)",
+          border: "1px solid rgba(255, 255, 255, 0.2)",
         }}
       >
-        <div style={{ fontSize: "var(--font-sm)", fontWeight: 600, marginBottom: "var(--spacing-md)" }}>Appearance</div>
+        <div style={{ fontSize: "var(--font-sm)", fontWeight: 600, marginBottom: "var(--spacing-md)" }}>
+          Appearance
+        </div>
         <div style={{ display: "flex", gap: "var(--spacing-sm)" }}>
           <button
             onClick={() => setThemeMode("light")}
@@ -452,9 +538,9 @@ function SettingsPage({ state, setState, resetState, theme, setThemeMode }) {
               flex: 1,
               padding: "12px",
               borderRadius: "var(--radius-sm)",
-              border: `2px solid ${theme === "light" ? "var(--color-accent)" : "var(--color-border)"}`,
-              background: theme === "light" ? "var(--color-accent)22" : "var(--color-input)",
-              color: "var(--color-text)",
+              border: `2px solid ${theme === "light" ? "rgba(255, 255, 255, 0.5)" : "rgba(255, 255, 255, 0.2)"}`,
+              background: theme === "light" ? "rgba(255, 255, 255, 0.3)" : "rgba(255, 255, 255, 0.1)",
+              color: "#fff",
               cursor: "pointer",
             }}
           >
@@ -466,9 +552,9 @@ function SettingsPage({ state, setState, resetState, theme, setThemeMode }) {
               flex: 1,
               padding: "12px",
               borderRadius: "var(--radius-sm)",
-              border: `2px solid ${theme === "dark" ? "var(--color-accent)" : "var(--color-border)"}`,
-              background: theme === "dark" ? "var(--color-accent)22" : "var(--color-input)",
-              color: "var(--color-text)",
+              border: `2px solid ${theme === "dark" ? "rgba(255, 255, 255, 0.5)" : "rgba(255, 255, 255, 0.2)"}`,
+              background: theme === "dark" ? "rgba(255, 255, 255, 0.3)" : "rgba(255, 255, 255, 0.1)",
+              color: "#fff",
               cursor: "pointer",
             }}
           >
@@ -480,15 +566,26 @@ function SettingsPage({ state, setState, resetState, theme, setThemeMode }) {
       {/* User Info */}
       <div
         style={{
-          background: "var(--color-card)",
+          background: "rgba(255, 255, 255, 0.15)",
+          backdropFilter: "blur(10px)",
           borderRadius: "var(--radius-lg)",
           padding: "var(--spacing-lg)",
           marginBottom: "var(--spacing-md)",
+          border: "1px solid rgba(255, 255, 255, 0.2)",
         }}
       >
-        <div style={{ fontSize: "var(--font-sm)", fontWeight: 600, marginBottom: "var(--spacing-md)" }}>Profile</div>
+        <div style={{ fontSize: "var(--font-sm)", fontWeight: 600, marginBottom: "var(--spacing-md)" }}>
+          Profile
+        </div>
         <div style={{ marginBottom: "var(--spacing-sm)" }}>
-          <label style={{ fontSize: "var(--font-xs)", color: "var(--color-text-muted)", display: "block", marginBottom: "4px" }}>
+          <label
+            style={{
+              fontSize: "var(--font-xs)",
+              color: "rgba(255, 255, 255, 0.6)",
+              display: "block",
+              marginBottom: "4px",
+            }}
+          >
             YOUR NAME
           </label>
           <input
@@ -498,11 +595,11 @@ function SettingsPage({ state, setState, resetState, theme, setThemeMode }) {
             placeholder="Your name"
             style={{
               width: "100%",
-              background: "var(--color-input)",
-              border: "1px solid var(--color-border)",
+              background: "rgba(255, 255, 255, 0.1)",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
               borderRadius: "var(--radius-sm)",
               padding: "12px",
-              color: "var(--color-text)",
+              color: "#fff",
               fontSize: "14px",
               fontFamily: "var(--font-sans)",
             }}
@@ -513,54 +610,76 @@ function SettingsPage({ state, setState, resetState, theme, setThemeMode }) {
       {/* Wake/Sleep Time */}
       <div
         style={{
-          background: "var(--color-card)",
+          background: "rgba(255, 255, 255, 0.15)",
+          backdropFilter: "blur(10px)",
           borderRadius: "var(--radius-lg)",
           padding: "var(--spacing-lg)",
           marginBottom: "var(--spacing-md)",
+          border: "1px solid rgba(255, 255, 255, 0.2)",
         }}
       >
-        <div style={{ fontSize: "var(--font-sm)", fontWeight: 600, marginBottom: "var(--spacing-md)" }}>Schedule</div>
+        <div style={{ fontSize: "var(--font-sm)", fontWeight: 600, marginBottom: "var(--spacing-md)" }}>
+          Schedule
+        </div>
         <div style={{ display: "flex", gap: "var(--spacing-sm)" }}>
           <div style={{ flex: 1 }}>
-            <label style={{ fontSize: "var(--font-xs)", color: "var(--color-text-muted)", display: "block", marginBottom: "4px" }}>
+            <label
+              style={{
+                fontSize: "var(--font-xs)",
+                color: "rgba(255, 255, 255, 0.6)",
+                display: "block",
+                marginBottom: "4px",
+              }}
+            >
               WAKE TIME
             </label>
             <input
               type="time"
               value={state.settings?.wakeTime || "08:00"}
-              onChange={(e) => setState((prev) => ({
-                ...prev,
-                settings: { ...prev.settings, wakeTime: e.target.value }
-              }))}
+              onChange={(e) =>
+                setState((prev) => ({
+                  ...prev,
+                  settings: { ...prev.settings, wakeTime: e.target.value },
+                }))
+              }
               style={{
                 width: "100%",
-                background: "var(--color-input)",
-                border: "1px solid var(--color-border)",
+                background: "rgba(255, 255, 255, 0.1)",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
                 borderRadius: "var(--radius-sm)",
                 padding: "12px",
-                color: "var(--color-text)",
+                color: "#fff",
                 fontSize: "14px",
               }}
             />
           </div>
           <div style={{ flex: 1 }}>
-            <label style={{ fontSize: "var(--font-xs)", color: "var(--color-text-muted)", display: "block", marginBottom: "4px" }}>
+            <label
+              style={{
+                fontSize: "var(--font-xs)",
+                color: "rgba(255, 255, 255, 0.6)",
+                display: "block",
+                marginBottom: "4px",
+              }}
+            >
               SLEEP TIME
             </label>
             <input
               type="time"
               value={state.settings?.sleepTime || "00:00"}
-              onChange={(e) => setState((prev) => ({
-                ...prev,
-                settings: { ...prev.settings, sleepTime: e.target.value }
-              }))}
+              onChange={(e) =>
+                setState((prev) => ({
+                  ...prev,
+                  settings: { ...prev.settings, sleepTime: e.target.value },
+                }))
+              }
               style={{
                 width: "100%",
-                background: "var(--color-input)",
-                border: "1px solid var(--color-border)",
+                background: "rgba(255, 255, 255, 0.1)",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
                 borderRadius: "var(--radius-sm)",
                 padding: "12px",
-                color: "var(--color-text)",
+                color: "#fff",
                 fontSize: "14px",
               }}
             />
@@ -571,14 +690,22 @@ function SettingsPage({ state, setState, resetState, theme, setThemeMode }) {
       {/* Danger Zone */}
       <div
         style={{
-          background: "var(--color-card)",
+          background: "rgba(239, 68, 68, 0.15)",
+          backdropFilter: "blur(10px)",
           borderRadius: "var(--radius-lg)",
           padding: "var(--spacing-lg)",
           marginBottom: "var(--spacing-md)",
-          border: "1px solid " + (showResetConfirm ? "var(--color-danger)" : "var(--color-border)"),
+          border: "1px solid " + (showResetConfirm ? "rgba(239, 68, 68, 0.5)" : "rgba(239, 68, 68, 0.3)"),
         }}
       >
-        <div style={{ fontSize: "var(--font-sm)", fontWeight: 600, marginBottom: "var(--spacing-md)", color: "var(--color-danger)" }}>
+        <div
+          style={{
+            fontSize: "var(--font-sm)",
+            fontWeight: 600,
+            marginBottom: "var(--spacing-md)",
+            color: "#ef4444",
+          }}
+        >
           Danger Zone
         </div>
         {!showResetConfirm ? (
@@ -588,9 +715,9 @@ function SettingsPage({ state, setState, resetState, theme, setThemeMode }) {
               width: "100%",
               padding: "12px",
               borderRadius: "var(--radius-sm)",
-              border: "1px solid var(--color-danger)",
+              border: "1px solid rgba(239, 68, 68, 0.5)",
               background: "transparent",
-              color: "var(--color-danger)",
+              color: "#ef4444",
               cursor: "pointer",
               fontSize: "14px",
             }}
@@ -599,7 +726,13 @@ function SettingsPage({ state, setState, resetState, theme, setThemeMode }) {
           </button>
         ) : (
           <div>
-            <div style={{ fontSize: "var(--font-sm)", color: "var(--color-text-muted)", marginBottom: "var(--spacing-md)" }}>
+            <div
+              style={{
+                fontSize: "var(--font-sm)",
+                color: "rgba(255, 255, 255, 0.6)",
+                marginBottom: "var(--spacing-md)",
+              }}
+            >
               This will permanently delete all your data. This action cannot be undone.
             </div>
             <div style={{ display: "flex", gap: "var(--spacing-sm)" }}>
@@ -613,7 +746,7 @@ function SettingsPage({ state, setState, resetState, theme, setThemeMode }) {
                   padding: "12px",
                   borderRadius: "var(--radius-sm)",
                   border: "none",
-                  background: "var(--color-danger)",
+                  background: "#ef4444",
                   color: "#fff",
                   cursor: "pointer",
                   fontSize: "14px",
@@ -627,9 +760,9 @@ function SettingsPage({ state, setState, resetState, theme, setThemeMode }) {
                   flex: 1,
                   padding: "12px",
                   borderRadius: "var(--radius-sm)",
-                  border: "1px solid var(--color-border)",
+                  border: "1px solid rgba(255, 255, 255, 0.2)",
                   background: "transparent",
-                  color: "var(--color-text)",
+                  color: "#fff",
                   cursor: "pointer",
                   fontSize: "14px",
                 }}
@@ -642,7 +775,14 @@ function SettingsPage({ state, setState, resetState, theme, setThemeMode }) {
       </div>
 
       {/* Version */}
-      <div style={{ textAlign: "center", fontSize: "var(--font-xs)", color: "var(--color-text-muted)", marginTop: "var(--spacing-lg)" }}>
+      <div
+        style={{
+          textAlign: "center",
+          fontSize: "var(--font-xs)",
+          color: "rgba(255, 255, 255, 0.5)",
+          marginTop: "var(--spacing-lg)",
+        }}
+      >
         LifeOS v2.0.0
       </div>
     </div>

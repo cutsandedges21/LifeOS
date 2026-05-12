@@ -1,0 +1,68 @@
+<h2>How should the accountability section work?</h2>
+<p class="subtitle">Where and when should users explain missed goals?</p>
+
+<div class="cards">
+  <div class="card" data-choice="modal" onclick="toggleSelect(this)">
+    <div class="card-image" style="background: rgba(0,0,0,0.8); padding: 20px; display: flex; flex-direction: column; gap: 12px; border-radius: 16px;">
+      <div style="color: #fff; font-size: 16px; font-weight: 600; margin-bottom: 8px;">Why didn't you complete this?</div>
+      <div style="background: rgba(255,255,255,0.1); border-radius: 8px; padding: 12px; border: 1px solid rgba(255,255,255,0.2);">
+        <div style="color: rgba(255,255,255,0.5); font-size: 12px;">Goal: Complete workout</div>
+      </div>
+      <textarea style="width: 100%; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 12px; color: #fff; font-size: 14px; min-height: 80px; resize: none;" placeholder="Be honest. What got in the way?"></textarea>
+      <div style="display: flex; gap: 8px;">
+        <button style="flex: 1; background: #ef4444; color: #fff; border: none; border-radius: 8px; padding: 12px; font-weight: 600;">Skip & Explain</button>
+        <button style="flex: 1; background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 12px;">Cancel</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Modal Popup</h3>
+      <p>When user tries to skip a goal, a modal appears requiring an explanation. Can't skip without writing why.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="inline" onclick="toggleSelect(this)">
+    <div class="card-image" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+      <div style="display: flex; gap: 12px; align-items: stretch;">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+          <div style="width: 12px; height: 12px; border-radius: 50%; background: #ef4444; border: 2px solid rgba(255,255,255,0.3);"></div>
+        </div>
+        <div style="flex: 1; background: rgba(239,68,68,0.2); backdrop-filter: blur(10px); border-radius: 12px; padding: 14px; border: 1px solid rgba(239,68,68,0.3);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <div style="color: #ef4444; font-size: 11px; font-weight: 600;">MISSED — 8:00 AM</div>
+            <div style="color: #ef4444; font-size: 18px;">✕</div>
+          </div>
+          <div style="color: #fff; font-size: 15px; font-weight: 600;">Morning workout</div>
+          <div style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 10px; margin-top: 8px;">
+            <div style="color: rgba(255,255,255,0.5); font-size: 10px; margin-bottom: 4px;">ACCOUNTABILITY NOTE</div>
+            <div style="color: rgba(255,255,255,0.8); font-size: 12px; font-style: italic;">"Overslept. Need to fix sleep schedule."</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Inline in Timeline</h3>
+      <p>Missed goals show in timeline with a red indicator and an accountability note field right in the card.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="section" onclick="toggleSelect(this)">
+    <div class="card-image" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+      <div style="background: rgba(239,68,68,0.15); backdrop-filter: blur(10px); border-radius: 12px; padding: 16px; border: 1px solid rgba(239,68,68,0.3);">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+          <div style="color: #ef4444; font-size: 20px;">⚠️</div>
+          <div style="color: #fff; font-size: 16px; font-weight: 600;">Accountability Required</div>
+        </div>
+        <div style="color: rgba(255,255,255,0.7); font-size: 12px; margin-bottom: 8px;">You missed 1 goal today. Explain why:</div>
+        <div style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 10px; margin-bottom: 8px;">
+          <div style="color: #fff; font-size: 13px;">• Morning workout</div>
+        </div>
+        <textarea style="width: 100%; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 10px; color: #fff; font-size: 13px; min-height: 60px; resize: none;" placeholder="What happened?"></textarea>
+        <button style="width: 100%; background: #ef4444; color: #fff; border: none; border-radius: 8px; padding: 10px; font-weight: 600; margin-top: 8px;">Submit Explanation</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Dedicated Section</h3>
+      <p>A dedicated "Accountability" card appears at the top when there are missed goals. Requires explanation before continuing.</p>
+    </div>
+  </div>
+</div>

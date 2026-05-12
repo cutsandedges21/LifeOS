@@ -1,0 +1,113 @@
+<h2>Combined Accountability: Top Card + Inline Notes</h2>
+<p class="subtitle">Can't dismiss the top card without explaining. Notes also show inline in timeline.</p>
+
+<div class="mockup">
+  <div class="mockup-header">Preview: Accountability Flow</div>
+  <div class="mockup-body" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 16px; min-height: 450px; display: flex; flex-direction: column; gap: 12px;">
+
+    <!-- Accountability Card (Top - Cannot Dismiss) -->
+    <div style="background: rgba(239,68,68,0.2); backdrop-filter: blur(20px); border-radius: 16px; padding: 16px; border: 2px solid rgba(239,68,68,0.4); animation: shake 0.5s ease-in-out;">
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+        <div style="color: #ef4444; font-size: 24px;">⚠️</div>
+        <div>
+          <div style="color: #fff; font-size: 16px; font-weight: 700;">Accountability Required</div>
+          <div style="color: rgba(255,255,255,0.7); font-size: 11px;">You missed 1 goal. Explain why to continue.</div>
+        </div>
+      </div>
+      <div style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 10px; margin-bottom: 10px;">
+        <div style="color: #fff; font-size: 13px;">✕ Morning workout (8:00 AM)</div>
+      </div>
+      <textarea style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 12px; color: #fff; font-size: 13px; min-height: 70px; resize: none;" placeholder="Be honest. What got in the way?"></textarea>
+      <button style="width: 100%; background: #ef4444; color: #fff; border: none; border-radius: 8px; padding: 12px; font-weight: 600; margin-top: 10px;">Submit & Continue</button>
+    </div>
+
+    <!-- Hero Section (Simplified) -->
+    <div style="background: rgba(255,255,255,0.15); backdrop-filter: blur(20px); border-radius: 16px; padding: 16px; border: 1px solid rgba(255,255,255,0.2); opacity: 0.6;">
+      <div style="display: flex; gap: 10px;">
+        <div style="flex: 1; background: rgba(255,255,255,0.1); border-radius: 10px; padding: 10px; text-align: center;">
+          <div style="color: #fff; font-size: 22px; font-weight: 700;">67%</div>
+          <div style="color: rgba(255,255,255,0.7); font-size: 9px;">DAY</div>
+        </div>
+        <div style="flex: 1; background: rgba(255,255,255,0.1); border-radius: 10px; padding: 10px; text-align: center;">
+          <div style="color: #4ade80; font-size: 22px; font-weight: 700;">78%</div>
+          <div style="color: rgba(255,255,255,0.7); font-size: 9px;">RECOVERY</div>
+        </div>
+        <div style="flex: 1; background: rgba(255,255,255,0.1); border-radius: 10px; padding: 10px; text-align: center;">
+          <div style="color: #fbbf24; font-size: 22px; font-weight: 700;">12</div>
+          <div style="color: rgba(255,255,255,0.7); font-size: 9px;">STREAK</div>
+        </div>
+        <div style="flex: 1; background: rgba(255,255,255,0.1); border-radius: 10px; padding: 10px; text-align: center;">
+          <div style="color: #fff; font-size: 22px; font-weight: 700;">2/5</div>
+          <div style="color: rgba(255,255,255,0.7); font-size: 9px;">GOALS</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Timeline with Inline Accountability -->
+    <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+      <div style="color: rgba(255,255,255,0.7); font-size: 11px; font-weight: 500; padding-left: 4px;">TODAY'S FLOW</div>
+
+      <!-- Missed Goal with Inline Note -->
+      <div style="display: flex; gap: 12px; align-items: stretch;">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+          <div style="width: 12px; height: 12px; border-radius: 50%; background: #ef4444; border: 2px solid rgba(255,255,255,0.3);"></div>
+          <div style="flex: 1; width: 2px; background: rgba(255,255,255,0.2);"></div>
+        </div>
+        <div style="flex: 1; background: rgba(239,68,68,0.15); backdrop-filter: blur(10px); border-radius: 12px; padding: 14px; border: 1px solid rgba(239,68,68,0.3);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <div style="color: #ef4444; font-size: 11px; font-weight: 600;">8:00 AM — MISSED</div>
+            <div style="color: #ef4444; font-size: 18px;">✕</div>
+          </div>
+          <div style="color: #fff; font-size: 15px; font-weight: 600;">Morning workout</div>
+          <div style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 10px; margin-top: 8px;">
+            <div style="color: rgba(255,255,255,0.5); font-size: 10px; margin-bottom: 4px;">ACCOUNTABILITY NOTE</div>
+            <div style="color: rgba(255,255,255,0.8); font-size: 12px; font-style: italic;">"Overslept. Need to fix sleep schedule."</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Current Goal -->
+      <div style="display: flex; gap: 12px; align-items: stretch;">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+          <div style="width: 12px; height: 12px; border-radius: 50%; background: #fbbf24; border: 2px solid rgba(255,255,255,0.3); animation: pulse 2s infinite;"></div>
+          <div style="flex: 1; width: 2px; background: rgba(255,255,255,0.2);"></div>
+        </div>
+        <div style="flex: 1; background: rgba(255,255,255,0.2); backdrop-filter: blur(10px); border-radius: 12px; padding: 14px; border: 2px solid rgba(255,255,255,0.3);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <div style="color: #fbbf24; font-size: 11px; font-weight: 600;">NOW — IN PROGRESS</div>
+            <div style="color: rgba(255,255,255,0.7); font-size: 18px;">○</div>
+          </div>
+          <div style="color: #fff; font-size: 15px; font-weight: 600;">Deep work block</div>
+          <div style="color: rgba(255,255,255,0.6); font-size: 12px; margin-top: 4px;">Focus on business tasks • 2h remaining</div>
+        </div>
+      </div>
+
+      <!-- Upcoming Goal -->
+      <div style="display: flex; gap: 12px; align-items: stretch;">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+          <div style="width: 12px; height: 12px; border-radius: 50%; background: rgba(255,255,255,0.3); border: 2px solid rgba(255,255,255,0.2);"></div>
+        </div>
+        <div style="flex: 1; background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius: 12px; padding: 14px; border: 1px solid rgba(255,255,255,0.15);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <div style="color: rgba(255,255,255,0.5); font-size: 11px; font-weight: 600;">5:00 PM — UPCOMING</div>
+            <div style="color: rgba(255,255,255,0.4); font-size: 18px;">○</div>
+          </div>
+          <div style="color: rgba(255,255,255,0.8); font-size: 15px; font-weight: 600;">Read 30 pages</div>
+          <div style="color: rgba(255,255,255,0.5); font-size: 12px; margin-top: 4px;">Atomic Habits • Chapter 4</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.1); }
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+</style>

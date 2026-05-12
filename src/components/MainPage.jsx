@@ -1,64 +1,238 @@
 import { useState, useEffect } from "react";
-import { Card, SectionLabel, Input, Button, Textarea } from "./UI.jsx";
+import { AnimatePresence } from "framer-motion";
+import {
+  GlassCard,
+  TimelineItem,
+  AccountabilityCard,
+  HeroSection,
+} from "./GlassComponents.jsx";
+import { SectionLabel, Input, Button } from "./UI.jsx";
+import { dayStr, timeStr } from "../utils/formatters.js";
 
-export function MainPage({ state, setState, pct, pod, leftStr, overseerLoading, sendMsg, chatRef, greeting }) {
+export function MainPage({
+  state,
+  setState,
+  pct,
+  overseerLoading,
+  sendMsg,
+  chatRef,
+  greeting,
+}) {
   const [newGoal, setNewGoal] = useState("");
+  const [accountabilityExplanation, setAccountabilityExplanation] = useState("");
+  const [showAccountability, setShowAccountability] = useState(false);
+
+  // Check if there are missed goals that need accountability
+  const missedGoals = state.goals.filter((g) => !g.done && g.accountabilityRequired);
+  const hasUnresolvedAccountability = missedGoals.some((g) => !g.accountabilityNote);
+
+  useEffect(() => {
+    if (hasUnresolvedAccountability) {
+      setShowAccountability(true);
+    }
+  }, [hasUnresolvedAccountability]);
 
   const addGoal = () => {
     if (!newGoal.trim()) return;
     setState((prev) => ({
       ...prev,
-      goals: [...prev.goals, { id: Date.now(), text: newGoal.trim(), done: false }],
+      goals: [
+        ...prev.goals,
+        {
+          id: Date.now(),
+          text: newGoal.trim(),
+          done: false,
+          time: timeStr(),
+        },
+      ],
     }));
     setNewGoal("");
   };
 
   const toggleGoal = (id) => {
+    const goal = state.goals.find((g) => g.id === id);
+    if (!goal) return;
+
+    if (goal.done) {
+      // Unmark as done - remove accountability
+      setState((prev) => ({
+        ...prev,
+        goals: prev.goals.map((g) =>
+          g.id === id
+            ? { ...g, done: false, accountabilityRequired: true, accountabilityNote: undefined }
+            : g
+        ),
+      }));
+    } else {
+      // Mark as done
+      setState((prev) => ({
+        ...prev,
+        goals: prev.goals.map((g) =>
+          g.id === id ? { ...g, done: true, accountabilityRequired: false } : g
+        ),
+      }));
+    }
+  };
+
+  const submitAccountability = () => {
+    if (!accountabilityExplanation.trim()) return;
+
     setState((prev) => ({
       ...prev,
-      goals: prev.goals.map((g) => (g.id === id ? { ...g, done: !g.done } : g)),
+      goals: prev.goals.map((g) =>
+        g.accountabilityRequired && !g.accountabilityNote
+          ? { ...g, accountabilityNote: accountabilityExplanation, accountabilityRequired: false }
+          : g
+      ),
     }));
+    setAccountabilityExplanation("");
+    setShowAccountability(false);
   };
 
   const completedGoals = state.goals.filter((g) => g.done).length;
+  const currentGoal = state.goals.find((g) => !g.done && !g.accountabilityRequired);
+  const upcomingGoals = state.goals.filter(
+    (g) => !g.done && g.id !== currentGoal?.id && !g.accountabilityRequired
+  );
+  const skippedGoals = state.goals.filter((g) => g.accountabilityRequired);
+
+  // Build timeline items
+  const timelineItems = [
+    ...state.goals
+      .filter((g) => g.done)
+      .map((g) => ({
+        id: g.id,
+        status: "completed",
+        time: g.time || "Done",
+        title: g.text,
+        details: "Completed",
+      })),
+    ...(currentGoal
+      ? [
+          {
+            id: currentGoal.id,
+            status: "current",
+            time: "NOW",
+            title: currentGoal.text,
+            details: "In progress",
+          },
+        ]
+      : []),
+    ...upcomingGoals.map((g) => ({
+      id: g.id,
+      status: "upcoming",
+      time: g.time || "Upcoming",
+      title: g.text,
+      details: "Pending",
+    })),
+    ...skippedGoals.map((g) => ({
+      id: g.id,
+      status: "missed",
+      time: g.time || "Missed",
+      title: g.text,
+      details: g.accountabilityNote || "Accountability required",
+      children: g.accountabilityNote && (
+        <div
+          style={{
+            background: "rgba(0, 0, 0, 0.2)",
+            borderRadius: "8px",
+            padding: "10px",
+            marginTop: "8px",
+          }}
+        >
+          <div style={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "10px", marginBottom: "4px" }}>
+            ACCOUNTABILITY NOTE
+          </div>
+          <div style={{ color: "rgba(255, 255, 255, 0.8)", fontSize: "12px", fontStyle: "italic" }}>
+            "{g.accountabilityNote}"
+          </div>
+        </div>
+      ),
+    })),
+  ];
 
   return (
     <div style={{ padding: "0 var(--spacing-lg)" }}>
-      {/* Day Ring */}
-      <Card style={{ marginTop: "var(--spacing-lg)", display: "flex", alignItems: "center", gap: "var(--spacing-xl)" }}>
-        <DayRing pct={pct} />
-        <div>
-          <div style={{ fontSize: "var(--font-xl)", fontWeight: 700 }}>
-            {greeting} {state.user || "User"}
-          </div>
-          <div style={{ fontSize: "var(--font-md)", fontWeight: 600, color: "var(--color-text-muted)", marginTop: "4px" }}>
-            {pod.emoji} {pod.label} — {pod.cta}
-          </div>
-          <div
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "var(--font-sm)",
-              color: "var(--color-text-muted)",
-              marginTop: "var(--spacing-xs)",
-            }}
-          >
-            {leftStr}
-          </div>
-          <div
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "var(--font-xs)",
-              color: "var(--color-text-muted)",
-              marginTop: "2px",
-            }}
-          >
-            {state.settings?.wakeTime || "08:00"} – {state.settings?.sleepTime || "00:00"}
-          </div>
-        </div>
-      </Card>
+      {/* Accountability Card */}
+      <AnimatePresence>
+        {showAccountability && missedGoals.length > 0 && (
+          <AccountabilityCard
+            missedGoals={missedGoals}
+            explanation={accountabilityExplanation}
+            setExplanation={setAccountabilityExplanation}
+            onSubmit={submitAccountability}
+          />
+        )}
+      </AnimatePresence>
 
-      {/* Overseer */}
-      <Card>
+      {/* Hero Section */}
+      <HeroSection
+        greeting={greeting}
+        metrics={{
+          date: dayStr(),
+          name: state.user || "User",
+          dayProgress: `${pct}%`,
+          recovery: `${state.whoop.recovery}%`,
+          streak: state.streak,
+          goals: `${completedGoals}/${state.goals.length}`,
+        }}
+      />
+
+      {/* Timeline Section */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
+        <div style={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "11px", fontWeight: 500, paddingLeft: "4px" }}>
+          TODAY'S FLOW
+        </div>
+
+        {timelineItems.length === 0 ? (
+          <div
+            style={{
+              background: "rgba(255, 255, 255, 0.1)",
+              backdropFilter: "blur(10px)",
+              borderRadius: "12px",
+              padding: "20px",
+              textAlign: "center",
+              border: "1px solid rgba(255, 255, 255, 0.15)",
+            }}
+          >
+            <div style={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "14px" }}>
+              No goals yet. Add your first goal below!
+            </div>
+          </div>
+        ) : (
+          timelineItems.map((item) => (
+            <TimelineItem
+              key={item.id}
+              status={item.status}
+              time={item.time}
+              title={item.title}
+              details={item.details}
+              onClick={() => {
+                if (item.status === "current" || item.status === "upcoming") {
+                  toggleGoal(item.id);
+                }
+              }}
+            >
+              {item.children}
+            </TimelineItem>
+          ))
+        )}
+      </div>
+
+      {/* Add Goal Input */}
+      <div style={{ display: "flex", gap: "var(--spacing-sm)", marginTop: "var(--spacing-md)" }}>
+        <Input
+          value={newGoal}
+          onChange={(e) => setNewGoal(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && addGoal()}
+          placeholder="Add a goal for today…"
+          style={{ marginBottom: 0, flex: 1 }}
+        />
+        <Button onClick={addGoal}>+ Add</Button>
+      </div>
+
+      {/* Overseer Chat */}
+      <GlassCard style={{ marginTop: "var(--spacing-lg)" }}>
         <SectionLabel icon="✦">OVERSEER</SectionLabel>
         <div style={{ display: "flex", alignItems: "center", gap: "var(--spacing-md)", marginBottom: "var(--spacing-md)" }}>
           <div
@@ -66,7 +240,8 @@ export function MainPage({ state, setState, pct, pod, leftStr, overseerLoading, 
               width: "36px",
               height: "36px",
               borderRadius: "var(--radius-md)",
-              background: "var(--color-input)",
+              background: "rgba(255, 255, 255, 0.2)",
+              backdropFilter: "blur(10px)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -121,10 +296,14 @@ export function MainPage({ state, setState, pct, pod, leftStr, overseerLoading, 
                     maxWidth: "80%",
                     padding: "9px 13px",
                     borderRadius: "12px",
-                    background: m.role === "user" ? "var(--color-input)" : "var(--color-border)",
+                    background: m.role === "user"
+                      ? "rgba(255, 255, 255, 0.2)"
+                      : "rgba(255, 255, 255, 0.1)",
+                    backdropFilter: "blur(10px)",
                     fontSize: "var(--font-base)",
                     lineHeight: 1.55,
                     color: m.role === "ai" ? "var(--color-text-muted)" : "var(--color-text)",
+                    border: "1px solid rgba(255, 255, 255, 0.15)",
                   }}
                 >
                   {m.text}
@@ -137,9 +316,11 @@ export function MainPage({ state, setState, pct, pod, leftStr, overseerLoading, 
                   display: "flex",
                   gap: "4px",
                   padding: "9px 13px",
-                  background: "var(--color-border)",
+                  background: "rgba(255, 255, 255, 0.1)",
+                  backdropFilter: "blur(10px)",
                   borderRadius: "12px",
                   width: "fit-content",
+                  border: "1px solid rgba(255, 255, 255, 0.15)",
                 }}
               >
                 {[0, 1, 2].map((i) => (
@@ -166,9 +347,11 @@ export function MainPage({ state, setState, pct, pod, leftStr, overseerLoading, 
             display: "flex",
             alignItems: "center",
             gap: "var(--spacing-md)",
-            background: "var(--color-input)",
+            background: "rgba(255, 255, 255, 0.1)",
+            backdropFilter: "blur(10px)",
             borderRadius: "var(--radius-md)",
             padding: "10px 14px",
+            border: "1px solid rgba(255, 255, 255, 0.15)",
           }}
         >
           <span style={{ fontSize: "var(--font-md)", color: "var(--color-text-muted)" }}>🎤</span>
@@ -194,173 +377,7 @@ export function MainPage({ state, setState, pct, pod, leftStr, overseerLoading, 
             ↑
           </Button>
         </div>
-      </Card>
-
-      {/* Goals */}
-      <Card>
-        <SectionLabel>GOALMAXXING</SectionLabel>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "var(--spacing-lg)",
-          }}
-        >
-          <div>
-            <div
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: "var(--font-xs)",
-                color: "var(--color-text-muted)",
-              }}
-            >
-              TODAY — {new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }).toUpperCase()}
-            </div>
-            <div style={{ display: "flex", alignItems: "baseline", gap: "var(--spacing-sm)", marginTop: "var(--spacing-xs)" }}>
-              <span style={{ fontSize: "var(--font-5xl)", fontWeight: 800, lineHeight: 1 }}>{completedGoals}</span>
-              <span style={{ fontSize: "var(--font-sm)", color: "var(--color-text-muted)" }}>
-                / {state.goals.length} COMPLETE
-              </span>
-            </div>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "var(--spacing-sm)",
-              background: "var(--color-input)",
-              borderRadius: "var(--radius-sm)",
-              padding: "6px 12px",
-            }}
-          >
-            <span style={{ fontSize: "var(--font-sm)", color: "var(--color-accent)" }}>⚡</span>
-            <span
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: "var(--font-xs)",
-                color: "var(--color-text-muted)",
-              }}
-            >
-              {state.streak} DAY STREAK
-            </span>
-          </div>
-        </div>
-
-        {state.goals.map((g) => (
-          <div
-            key={g.id}
-            onClick={() => toggleGoal(g.id)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "var(--spacing-md)",
-              padding: "14px 0",
-              borderBottom: "1px solid var(--color-border)",
-              cursor: "pointer",
-            }}
-          >
-            <div
-              style={{
-                width: "20px",
-                height: "20px",
-                borderRadius: "50%",
-                border: `1.5px solid ${g.done ? "var(--color-success)" : "var(--color-border)"}`,
-                background: g.done ? "var(--color-success)22" : "transparent",
-                flexShrink: 0,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "var(--font-xs)",
-                color: "var(--color-success)",
-              }}
-            >
-              {g.done ? "✓" : ""}
-            </div>
-            <span
-              style={{
-                flex: 1,
-                fontSize: "var(--font-md)",
-                color: g.done ? "var(--color-text-muted)" : "var(--color-text)",
-                textDecoration: g.done ? "line-through" : "none",
-              }}
-            >
-              {g.text}
-            </span>
-            <span style={{ fontSize: "var(--font-sm)", color: g.done ? "var(--color-success)" : "var(--color-border)" }}>
-              ⚡
-            </span>
-          </div>
-        ))}
-
-        <div style={{ display: "flex", gap: "var(--spacing-sm)", marginTop: "var(--spacing-md)" }}>
-          <Input
-            value={newGoal}
-            onChange={(e) => setNewGoal(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && addGoal()}
-            placeholder="Add a goal for today…"
-            style={{ marginBottom: 0 }}
-          />
-          <Button onClick={addGoal}>+ Add</Button>
-        </div>
-      </Card>
+      </GlassCard>
     </div>
-  );
-}
-
-function DayRing({ pct }) {
-  const r = 46;
-  const circ = 2 * Math.PI * r;
-  const offset = circ * (1 - pct / 100);
-
-  return (
-    <svg width="110" height="110" style={{ flexShrink: 0 }}>
-      <circle cx="55" cy="55" r={r} fill="none" stroke="var(--color-border)" strokeWidth="8" />
-      <circle
-        cx="55"
-        cy="55"
-        r={r}
-        fill="none"
-        stroke="var(--color-accent)"
-        strokeWidth="8"
-        strokeDasharray={circ}
-        strokeDashoffset={offset}
-        strokeLinecap="round"
-        transform="rotate(-90 55 55)"
-        style={{ transition: "stroke-dashoffset 1s ease" }}
-      />
-      <text
-        x="55"
-        y="50"
-        textAnchor="middle"
-        fill="var(--color-text)"
-        fontSize="22"
-        fontWeight="800"
-        fontFamily="DM Sans,sans-serif"
-      >
-        {pct}%
-      </text>
-      <text
-        x="55"
-        y="66"
-        textAnchor="middle"
-        fill="var(--color-text-muted)"
-        fontSize="9"
-        fontFamily="DM Mono,monospace"
-        letterSpacing="1"
-      >
-        {pct < 25 ? "MORNING" : pct < 50 ? "MIDDAY" : pct < 75 ? "AFTERNOON" : "EVENING"}
-      </text>
-      <text
-        x="55"
-        y="78"
-        textAnchor="middle"
-        fill="var(--color-border)"
-        fontSize="8"
-        fontFamily="DM Mono,monospace"
-      >
-        {new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
-      </text>
-    </svg>
   );
 }
