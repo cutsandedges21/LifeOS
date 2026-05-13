@@ -3,17 +3,20 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <meta name="theme-color" content="#000000" />
+  <meta name="theme-color" content="#080810" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="description" content="LifeOS - Your personal operating system for success" />
   <title>LifeOS</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
-    * {
+    *, *::before, *::after {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
     }
 
     html, body, #root {
@@ -23,22 +26,50 @@
     }
 
     body {
-      font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
+      background: #080810;
+      color: #F8FAFF;
+      overscroll-behavior: none;
     }
 
-    /* Prevent zoom on input focus for iOS */
+    /* Prevent zoom on input focus iOS */
     @supports (-webkit-touch-callout: none) {
       input, select, textarea {
         font-size: 16px !important;
       }
     }
 
-    /* Animations */
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
+    /* Glass input base */
+    input, select, textarea {
+      outline: none;
+      color-scheme: dark;
+    }
+
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      opacity: 0.3;
+    }
+
+    input[type="color"] {
+      cursor: pointer;
+    }
+
+    input[type="time"]::-webkit-calendar-picker-indicator,
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(0.7);
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 2px; height: 2px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+    /* Global keyframes */
+    @keyframes pulse-ring {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.08); }
     }
 
     @keyframes blink {
@@ -46,27 +77,32 @@
       40% { opacity: 1; }
     }
 
-    .pulse {
-      animation: pulse 2s infinite;
+    @keyframes shimmer {
+      0% { background-position: -200% center; }
+      100% { background-position: 200% center; }
     }
 
-    .blink {
-      animation: blink 1.4s infinite;
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-8px); }
     }
 
-    /* Scrollbar styling */
-    ::-webkit-scrollbar {
-      width: 3px;
+    @keyframes glow-pulse {
+      0%, 100% { box-shadow: 0 0 20px rgba(124, 109, 250, 0.3); }
+      50% { box-shadow: 0 0 40px rgba(124, 109, 250, 0.6); }
     }
 
-    ::-webkit-scrollbar-track {
-      background: transparent;
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-6px); }
+      40% { transform: translateX(6px); }
+      60% { transform: translateX(-4px); }
+      80% { transform: translateX(4px); }
     }
 
-    ::-webkit-scrollbar-thumb {
-      background: var(--color-border);
-      border-radius: 2px;
-    }
+    .pulse { animation: pulse-ring 2s ease-in-out infinite; }
+    .blink { animation: blink 1.4s infinite; }
+    .float { animation: float 4s ease-in-out infinite; }
   </style>
 </head>
 <body>

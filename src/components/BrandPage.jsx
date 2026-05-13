@@ -1,282 +1,214 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { PlatformCard, GlassCard } from "./GlassComponents.jsx";
+import { GlassCard, MetricCard, PlatformCard } from "./GlassComponents.jsx";
 import { Input, Button, SectionLabel, Textarea } from "./UI.jsx";
-
-const PLATFORM_ICONS = {
-  twitter: "𝕏",
-  x: "𝕏",
-  instagram: "📷",
-  tiktok: "🎵",
-  youtube: "▶️",
-  linkedin: "💼",
-  facebook: "📘",
-  threads: "🧵",
-  default: "📱",
-};
 
 export function BrandPage({ state, setState }) {
   const [showAddPlatform, setShowAddPlatform] = useState(false);
-
   const [newPlatform, setNewPlatform] = useState({
-    name: "",
-    icon: "",
+    platform: "",
+    handle: "",
     followers: 0,
-    delta: "",
-    color: "#38bdf8",
-    history: [0],
+    growth: 0,
+    icon: "📱",
   });
 
   const addPlatform = () => {
-    if (!newPlatform.name.trim()) return;
+    if (!newPlatform.platform.trim() || !newPlatform.handle.trim()) return;
     setState((prev) => ({
       ...prev,
       brand: {
         ...prev.brand,
-        platforms: [...prev.brand.platforms, { ...newPlatform, id: Date.now() }],
+        platforms: [...(prev.brand?.platforms || []), { ...newPlatform, id: Date.now() }],
       },
     }));
-    setNewPlatform({ name: "", icon: "", followers: 0, delta: "", color: "#38bdf8", history: [0] });
+    setNewPlatform({ platform: "", handle: "", followers: 0, growth: 0, icon: "📱" });
     setShowAddPlatform(false);
   };
 
   const removePlatform = (id) => {
     setState((prev) => ({
       ...prev,
-      brand: { ...prev.brand, platforms: prev.brand.platforms.filter((p) => p.id !== id) },
+      brand: {
+        ...prev.brand,
+        platforms: (prev.brand?.platforms || []).filter((p) => p.id !== id),
+      },
     }));
   };
 
-  const incrementPosted = () => {
-    setState((prev) => ({
-      ...prev,
-      brand: { ...prev.brand, postedToday: prev.brand.postedToday + 1 },
-    }));
-  };
-
-  const decrementPosted = () => {
-    setState((prev) => ({
-      ...prev,
-      brand: { ...prev.brand, postedToday: Math.max(0, prev.brand.postedToday - 1) },
-    }));
-  };
-
-  // Calculate total followers and weekly growth
-  const totalFollowers = state.brand.platforms.reduce((sum, p) => sum + p.followers, 0);
-  const weeklyGrowth = state.brand.platforms.reduce((sum, p) => {
-    const delta = parseInt(p.delta?.replace(/[^\d-]/g, "") || "0");
-    return sum + delta;
-  }, 0);
+  const totalFollowers = (state.brand?.platforms || []).reduce(
+    (s, p) => s + Number(p.followers || 0),
+    0
+  );
+  const totalGrowth = (state.brand?.platforms || []).reduce(
+    (s, p) => s + Number(p.growth || 0),
+    0
+  );
 
   return (
-    <div style={{ padding: "var(--spacing-lg)" }}>
-      {/* Total Followers Summary */}
-      <GlassCard>
-        <div style={{ fontSize: "var(--font-xs)", color: "rgba(255, 255, 255, 0.6)", fontFamily: "var(--font-mono)", marginBottom: "4px" }}>
-          TOTAL FOLLOWERS
+    <div style={{ padding: "0 20px" }}>
+      {/* Brand Hero */}
+      <GlassCard style={{ padding: "24px" }} glow="#22D3EE">
+        <SectionLabel accent="#22D3EE">PERSONAL BRAND</SectionLabel>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "20px" }}>
+          <div>
+            <div style={{ fontSize: "10px", color: "rgba(248, 250, 255, 0.45)", fontFamily: "var(--font-mono)", marginBottom: "4px" }}>TOTAL REACH</div>
+            <div style={{ fontSize: "42px", fontWeight: 900, color: "#F8FAFF", letterSpacing: "-0.04em", lineHeight: 1 }}>
+              {totalFollowers.toLocaleString()}
+            </div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ color: "#34D399", fontWeight: 800, fontSize: "16px" }}>+{totalGrowth.toLocaleString()}</div>
+            <div style={{ fontSize: "9px", color: "rgba(248, 250, 255, 0.45)", fontFamily: "var(--font-mono)" }}>30D GROWTH</div>
+          </div>
         </div>
-        <div style={{ fontSize: "var(--font-4xl)", fontWeight: 800, letterSpacing: -1, marginBottom: "8px" }}>
-          {totalFollowers.toLocaleString()}
-        </div>
-        <div style={{ color: "#4ade80", fontSize: "14px", fontWeight: 600 }}>
-          +{weeklyGrowth} this week
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+          <MetricCard
+            label="POSTS"
+            value={state.brand?.posts || 0}
+            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+          />
+          <MetricCard
+            label="ENGAGEMENT"
+            value={`${state.brand?.engagement || 0}%`}
+            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+          />
         </div>
       </GlassCard>
 
-      {/* Platform Cards */}
-      <div style={{ marginBottom: "16px" }}>
-        <SectionLabel>SOCIAL PLATFORMS</SectionLabel>
-        {state.brand.platforms.map((p) => (
-          <PlatformCard
-            key={p.id}
-            platform={p.name}
-            handle={state.brand.handle || "@handle"}
-            followers={p.followers.toLocaleString()}
-            growth={p.delta?.replace(/[^\d-]/g, "") || "0"}
-            icon={PLATFORM_ICONS[p.name.toLowerCase()] || PLATFORM_ICONS.default}
-            onRemove={() => removePlatform(p.id)}
-          />
-        ))}
+      {/* Platforms Section */}
+      <div style={{ marginTop: "24px" }}>
+        <SectionLabel accent="#22D3EE">PLATFORMS</SectionLabel>
+        
+        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+          {(state.brand?.platforms || []).map((p, idx) => (
+            <PlatformCard
+              key={p.id}
+              delay={idx * 0.08}
+              platform={p.platform}
+              handle={p.handle}
+              followers={p.followers.toLocaleString()}
+              growth={p.growth.toLocaleString()}
+              icon={p.icon}
+              onRemove={() => removePlatform(p.id)}
+            />
+          ))}
+        </div>
+
         {!showAddPlatform ? (
           <motion.button
             onClick={() => setShowAddPlatform(true)}
             whileTap={{ scale: 0.98 }}
             style={{
               width: "100%",
-              padding: "14px",
-              borderRadius: "12px",
-              border: "1px dashed rgba(255, 255, 255, 0.3)",
-              background: "rgba(255, 255, 255, 0.1)",
-              color: "rgba(255, 255, 255, 0.7)",
+              marginTop: "12px",
+              padding: "16px",
+              borderRadius: "16px",
+              border: "1px dashed rgba(34, 211, 238, 0.4)",
+              background: "rgba(34, 211, 238, 0.05)",
+              color: "#22D3EE",
               cursor: "pointer",
               fontSize: "14px",
-              fontWeight: 500,
+              fontWeight: 600,
             }}
           >
-            + Add Platform
+            + Connect New Platform
           </motion.button>
         ) : (
-          <div
-            style={{
-              marginTop: "var(--spacing-md)",
-              padding: "var(--spacing-md)",
-              background: "rgba(255, 255, 255, 0.1)",
-              backdropFilter: "blur(10px)",
-              borderRadius: "12px",
-              border: "1px solid rgba(255, 255, 255, 0.15)",
-            }}
-          >
-            <Input
-              label="Platform Name"
-              value={newPlatform.name}
-              onChange={(e) => setNewPlatform({ ...newPlatform, name: e.target.value })}
-              placeholder="e.g., TikTok"
-            />
-            <div style={{ display: "flex", gap: "var(--spacing-sm)" }}>
+          <GlassCard style={{ marginTop: "12px", border: "1px solid rgba(34, 211, 238, 0.3)" }}>
+            <div style={{ display: "flex", gap: "10px" }}>
               <Input
-                label="Icon (single letter)"
+                label="Platform"
+                value={newPlatform.platform}
+                onChange={(e) => setNewPlatform({ ...newPlatform, platform: e.target.value })}
+                placeholder="Instagram"
+                style={{ flex: 2 }}
+              />
+              <Input
+                label="Icon"
                 value={newPlatform.icon}
                 onChange={(e) => setNewPlatform({ ...newPlatform, icon: e.target.value })}
-                placeholder="T"
-                maxLength={1}
+                placeholder="📸"
+                style={{ flex: 1 }}
               />
+            </div>
+            <Input
+              label="Handle"
+              value={newPlatform.handle}
+              onChange={(e) => setNewPlatform({ ...newPlatform, handle: e.target.value })}
+              placeholder="@username"
+            />
+            <div style={{ display: "flex", gap: "10px" }}>
               <Input
                 label="Followers"
                 type="number"
                 value={newPlatform.followers || ""}
                 onChange={(e) => setNewPlatform({ ...newPlatform, followers: Number(e.target.value) || 0 })}
-              />
-            </div>
-            <div style={{ display: "flex", gap: "var(--spacing-sm)" }}>
-              <Input
-                label="Weekly Growth (e.g., +42)"
-                value={newPlatform.delta}
-                onChange={(e) => setNewPlatform({ ...newPlatform, delta: e.target.value })}
-                placeholder="+42"
+                style={{ flex: 1 }}
               />
               <Input
-                label="Color"
-                type="color"
-                value={newPlatform.color}
-                onChange={(e) => setNewPlatform({ ...newPlatform, color: e.target.value })}
-                style={{ padding: "var(--spacing-xs)" }}
+                label="30D Growth"
+                type="number"
+                value={newPlatform.growth || ""}
+                onChange={(e) => setNewPlatform({ ...newPlatform, growth: Number(e.target.value) || 0 })}
+                style={{ flex: 1 }}
               />
             </div>
-            <div style={{ display: "flex", gap: "var(--spacing-sm)", marginTop: "var(--spacing-sm)" }}>
-              <Button onClick={addPlatform} style={{ flex: 1 }}>
-                Add Platform
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => setShowAddPlatform(false)}
-                style={{ color: "rgba(255, 255, 255, 0.7)" }}
-              >
-                Cancel
-              </Button>
+            <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
+              <Button onClick={addPlatform} style={{ flex: 2, background: "#22D3EE", border: "none" }}>Add Platform</Button>
+              <Button onClick={() => setShowAddPlatform(false)} variant="ghost" style={{ flex: 1 }}>Cancel</Button>
             </div>
-          </div>
+          </GlassCard>
         )}
       </div>
 
-      {/* Brand Info */}
-      <GlassCard>
-        <div style={{ fontSize: "var(--font-xs)", color: "rgba(255, 255, 255, 0.6)", fontFamily: "var(--font-mono)", marginBottom: "4px" }}>
-          MY PERSONAL BRAND
-        </div>
-        <div style={{ fontSize: "var(--font-2xl)", fontWeight: 800, marginBottom: "var(--spacing-xs)" }}>
-          {state.user || "Your Name"}{" "}
-          <span style={{ color: "rgba(255, 255, 255, 0.6)", fontWeight: 400, fontSize: "var(--font-lg)" }}>
-            {state.brand.handle || "@handle"}
-          </span>
-        </div>
-        <div style={{ fontSize: "var(--font-sm)", color: "rgba(255, 255, 255, 0.6)", marginBottom: "var(--spacing-lg)" }}>
-          {state.brand.tagline || "Your tagline here"}
+      {/* Content Strategy */}
+      <GlassCard style={{ marginTop: "24px" }}>
+        <SectionLabel accent="#7C6DFA">STRATEGY & REFLECTION</SectionLabel>
+        
+        <div style={{ marginBottom: "20px" }}>
+          <label style={{ fontSize: "10px", color: "rgba(248, 250, 255, 0.4)", display: "block", marginBottom: "8px", fontFamily: "var(--font-mono)" }}>MISSION STATEMENT</label>
+          <Textarea
+            value={state.brand?.mission || ""}
+            onChange={(e) => setState(p => ({ ...p, brand: { ...p.brand, mission: e.target.value } }))}
+            placeholder="What are you building? Who are you helping?"
+            rows={3}
+            style={{ marginBottom: "16px" }}
+          />
         </div>
 
-        <div style={{ display: "flex", gap: "var(--spacing-sm)", flexWrap: "wrap" }}>
-          <Input
-            label="Your Name"
-            value={state.user}
-            onChange={(e) => setState((prev) => ({ ...prev, user: e.target.value }))}
-            placeholder="Your name"
-            style={{ flex: 1, marginBottom: 0 }}
+        <div>
+          <label style={{ fontSize: "10px", color: "rgba(248, 250, 255, 0.4)", display: "block", marginBottom: "8px", fontFamily: "var(--font-mono)" }}>WEEKLY REFLECTION</label>
+          <Textarea
+            value={state.brand?.reflection || ""}
+            onChange={(e) => setState(p => ({ ...p, brand: { ...p.brand, reflection: e.target.value } }))}
+            placeholder="Wins from this week? Lessons learned?"
+            rows={5}
+            style={{ marginBottom: 0 }}
           />
-          <Input
-            label="Handle"
-            value={state.brand.handle}
-            onChange={(e) => setState((prev) => ({ ...prev, brand: { ...prev.brand, handle: e.target.value } }))}
-            placeholder="@handle"
-            style={{ flex: 1, marginBottom: 0 }}
-          />
+          <div style={{ textAlign: "right", marginTop: "8px", fontSize: "10px", color: "rgba(248, 250, 255, 0.3)", fontFamily: "var(--font-mono)" }}>
+            {state.brand?.reflection?.length || 0} CHARS
+          </div>
         </div>
+      </GlassCard>
+
+      {/* Quick Stats Grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginTop: "24px", paddingBottom: "20px" }}>
         <Input
-          label="Tagline"
-          value={state.brand.tagline}
-          onChange={(e) => setState((prev) => ({ ...prev, brand: { ...prev.brand, tagline: e.target.value } }))}
-          placeholder="Your tagline here"
+          label="Total Posts"
+          type="number"
+          value={state.brand?.posts || ""}
+          onChange={(e) => setState(p => ({ ...p, brand: { ...p.brand, posts: Number(e.target.value) || 0 } }))}
         />
-      </GlassCard>
-
-      {/* Posted Today */}
-      <GlassCard>
-        <SectionLabel>SHORT-FORM CONTENT</SectionLabel>
-        <div style={{ fontWeight: 700, fontSize: "var(--font-lg)", marginBottom: "var(--spacing-xs)" }}>
-          My main thing
-        </div>
-        <div style={{ fontSize: "var(--font-xs)", color: "rgba(255, 255, 255, 0.6)", marginBottom: "var(--spacing-md)" }}>
-          TikTok · Reels · Shorts
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--spacing-lg)" }}>
-          <div>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-xs)", color: "rgba(255, 255, 255, 0.6)" }}>
-              POSTED TODAY
-            </div>
-            <div style={{ fontSize: "var(--font-4xl)", fontWeight: 800 }}>{state.brand.postedToday}</div>
-            <div style={{ fontSize: "var(--font-sm)", color: "rgba(255, 255, 255, 0.6)" }}>videos</div>
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: "var(--font-sm)", color: "rgba(255, 255, 255, 0.6)", marginBottom: "var(--spacing-sm)" }}>
-              Get the first one out — momentum starts there.
-            </div>
-            <div style={{ display: "flex", gap: "var(--spacing-sm)" }}>
-              <Button
-                variant="ghost"
-                onClick={decrementPosted}
-                style={{ color: "rgba(255, 255, 255, 0.7)" }}
-              >
-                −
-              </Button>
-              <Button onClick={incrementPosted}>Posted one ↑</Button>
-            </div>
-          </div>
-        </div>
-      </GlassCard>
-
-      {/* Reflection */}
-      <GlassCard>
-        <SectionLabel>TODAY'S REFLECTION</SectionLabel>
-        <div style={{ fontWeight: 700, fontSize: "var(--font-lg)", marginBottom: "var(--spacing-xs)" }}>
-          {new Date().toLocaleDateString("en-US", { weekday: "short", month: "long", day: "numeric" })}
-        </div>
-        <div style={{ fontSize: "var(--font-sm)", color: "rgba(255, 255, 255, 0.6)", marginBottom: "var(--spacing-md)" }}>
-          Where is the account going? What's working? What's failing? What to do next?
-        </div>
-        <Textarea
-          value={state.brand.reflection}
-          onChange={(e) => setState((prev) => ({ ...prev, brand: { ...prev.brand, reflection: e.target.value } }))}
-          placeholder="Today my brand felt…"
-          rows={4}
+        <Input
+          label="Engage Rate %"
+          type="number"
+          step="0.1"
+          value={state.brand?.engagement || ""}
+          onChange={(e) => setState(p => ({ ...p, brand: { ...p.brand, engagement: Number(e.target.value) || 0 } }))}
         />
-        <div style={{ textAlign: "right", marginTop: "var(--spacing-sm)" }}>
-          <Button
-            variant="ghost"
-            onClick={() => { }}
-            style={{ color: "rgba(255, 255, 255, 0.7)" }}
-          >
-            📋 Save reflection
-          </Button>
-        </div>
-      </GlassCard>
+      </div>
     </div>
   );
 }

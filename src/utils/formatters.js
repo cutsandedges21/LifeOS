@@ -84,3 +84,59 @@ export const calculateSleepHours = (bedtime, wakeTime) => {
 
   return Math.round(diffHrs * 10) / 10; // Round to 1 decimal
 };
+
+export const calculateSleepScore = (bedtime, wakeTime) => {
+  const hours = calculateSleepHours(bedtime, wakeTime);
+  if (hours === 0) return 0;
+  // 8 hours = 100%
+  const score = Math.round((hours / 8) * 100);
+  return Math.min(100, score); // Cap at 100%
+};
+
+export const getWeeklyRestPercent = (entries) => {
+  if (!entries || entries.length === 0) return 0;
+
+  // Group entries by week (using a simple Sunday-based week or similar)
+  // To keep it simple and follow the user's "average of averages" logic:
+  const weeks = {};
+  entries.forEach((entry) => {
+    const date = new Date(entry.date);
+    // Get the start of the week (Sunday)
+    const sun = new Date(date);
+    sun.setDate(date.getDate() - date.getDay());
+    const weekKey = sun.toLocaleDateString('en-CA');
+
+    if (!weeks[weekKey]) weeks[weekKey] = [];
+    weeks[weekKey].push(entry.score);
+  });
+
+  const weeklyAverages = Object.values(weeks).map(
+    (scores) => scores.reduce((a, b) => a + b, 0) / scores.length
+  );
+
+  const totalAverage =
+    weeklyAverages.reduce((a, b) => a + b, 0) / weeklyAverages.length;
+  return Math.round(totalAverage);
+};
+
+export const getCurrentWeekSleep = (entries) => {
+  const weekScores = [];
+  const today = new Date();
+  
+  // Find this week's Monday
+  const day = today.getDay(); // 0 (Sun) to 6 (Sat)
+  const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
+  const monday = new Date(today);
+  monday.setDate(diff);
+  
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const dateStr = d.toLocaleDateString('en-CA');
+    
+    const entry = entries.find(e => e.date === dateStr);
+    weekScores.push(entry ? entry.score : 0);
+  }
+  
+  return weekScores;
+};

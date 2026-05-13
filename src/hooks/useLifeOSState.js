@@ -41,16 +41,18 @@ const INITIAL_STATE = {
     bedtime: "",
     wakeTime: "",
   },
+  sleepEntries: [],
   settings: {
     wakeTime: "08:00",
     sleepTime: "00:00",
   },
+  missedGoalsHistory: [],
 };
 
 export const useLifeOSState = () => {
   const [state, setState] = useState(() => {
     const saved = storage.get(STORAGE_KEYS.STATE);
-    return saved || INITIAL_STATE;
+    return saved ? { ...INITIAL_STATE, ...saved } : INITIAL_STATE;
   });
 
   const [isLoaded, setIsLoaded] = useState(false);

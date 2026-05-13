@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion, useMotionValue, useTransform, animate } from "framer-motion";
 import {
   GlassCard,
   TimelineItem,
@@ -19,18 +19,10 @@ export function MainPage({
   greeting,
 }) {
   const [newGoal, setNewGoal] = useState("");
-  const [accountabilityExplanation, setAccountabilityExplanation] = useState("");
-  const [showAccountability, setShowAccountability] = useState(false);
-
-  // Check if there are missed goals that need accountability
-  const missedGoals = state.goals.filter((g) => !g.done && g.accountabilityRequired);
-  const hasUnresolvedAccountability = missedGoals.some((g) => !g.accountabilityNote);
-
-  useEffect(() => {
-    if (hasUnresolvedAccountability) {
-      setShowAccountability(true);
-    }
-  }, [hasUnresolvedAccountability]);
+  const [editingGoalId, setEditingGoalId] = useState(null);
+  const [editingText, setEditingText] = useState("");
+  const [missedGoal, setMissedGoal] = useState(null); // The goal object being marked as missed
+  const [reason, setReason] = useState("");
 
   const addGoal = () => {
     if (!newGoal.trim()) return;
@@ -50,118 +42,136 @@ export function MainPage({
   };
 
   const toggleGoal = (id) => {
-    const goal = state.goals.find((g) => g.id === id);
-    if (!goal) return;
-
-    if (goal.done) {
-      // Unmark as done - remove accountability
-      setState((prev) => ({
-        ...prev,
-        goals: prev.goals.map((g) =>
-          g.id === id
-            ? { ...g, done: false, accountabilityRequired: true, accountabilityNote: undefined }
-            : g
-        ),
-      }));
-    } else {
-      // Mark as done
-      setState((prev) => ({
-        ...prev,
-        goals: prev.goals.map((g) =>
-          g.id === id ? { ...g, done: true, accountabilityRequired: false } : g
-        ),
-      }));
-    }
-  };
-
-  const submitAccountability = () => {
-    if (!accountabilityExplanation.trim()) return;
-
     setState((prev) => ({
       ...prev,
       goals: prev.goals.map((g) =>
-        g.accountabilityRequired && !g.accountabilityNote
-          ? { ...g, accountabilityNote: accountabilityExplanation, accountabilityRequired: false }
-          : g
+        g.id === id ? { ...g, done: !g.done, missed: false } : g
       ),
     }));
-    setAccountabilityExplanation("");
-    setShowAccountability(false);
+  };
+
+  const startEdit = (goal) => {
+    setEditingGoalId(goal.id);
+    setEditingText(goal.text);
+  };
+
+  const saveEdit = () => {
+    if (!editingText.trim()) return;
+    setState((prev) => ({
+      ...prev,
+      goals: prev.goals.map((g) =>
+        g.id === editingGoalId ? { ...g, text: editingText.trim() } : g
+      ),
+    }));
+    setEditingGoalId(null);
+  };
+
+  const handleMissed = () => {
+    if (!reason.trim() || !missedGoal) return;
+    
+    setState((prev) => ({
+      ...prev,
+      goals: prev.goals.map((g) => g.id === missedGoal.id ? { ...g, missed: true, reason: reason.trim(), done: false } : g),
+      missedGoalsHistory: [
+        ...(prev.missedGoalsHistory || []),
+        {
+          id: Date.now(),
+          text: missedGoal.text,
+          reason: reason.trim(),
+          date: dayStr(),
+          time: timeStr(),
+        },
+      ],
+    }));
+    
+    setMissedGoal(null);
+    setReason("");
   };
 
   const completedGoals = state.goals.filter((g) => g.done).length;
-  const currentGoal = state.goals.find((g) => !g.done && !g.accountabilityRequired);
-  const upcomingGoals = state.goals.filter(
-    (g) => !g.done && g.id !== currentGoal?.id && !g.accountabilityRequired
-  );
-  const skippedGoals = state.goals.filter((g) => g.accountabilityRequired);
-
-  // Build timeline items
-  const timelineItems = [
-    ...state.goals
-      .filter((g) => g.done)
-      .map((g) => ({
-        id: g.id,
-        status: "completed",
-        time: g.time || "Done",
-        title: g.text,
-        details: "Completed",
-      })),
-    ...(currentGoal
-      ? [
-          {
-            id: currentGoal.id,
-            status: "current",
-            time: "NOW",
-            title: currentGoal.text,
-            details: "In progress",
-          },
-        ]
-      : []),
-    ...upcomingGoals.map((g) => ({
-      id: g.id,
-      status: "upcoming",
-      time: g.time || "Upcoming",
-      title: g.text,
-      details: "Pending",
-    })),
-    ...skippedGoals.map((g) => ({
-      id: g.id,
-      status: "missed",
-      time: g.time || "Missed",
-      title: g.text,
-      details: g.accountabilityNote || "Accountability required",
-      children: g.accountabilityNote && (
-        <div
-          style={{
-            background: "rgba(0, 0, 0, 0.2)",
-            borderRadius: "8px",
-            padding: "10px",
-            marginTop: "8px",
-          }}
-        >
-          <div style={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "10px", marginBottom: "4px" }}>
-            ACCOUNTABILITY NOTE
-          </div>
-          <div style={{ color: "rgba(255, 255, 255, 0.8)", fontSize: "12px", fontStyle: "italic" }}>
-            "{g.accountabilityNote}"
-          </div>
-        </div>
-      ),
-    })),
-  ];
+  
+  // Build items (simplified, no legacy accountability here as requested by new feature)
+  const timelineItems = state.goals.map(g => ({
+    ...g,
+    status: g.done ? "completed" : "upcoming", // We'll simplify status for clarity
+    title: g.text,
+  }));
 
   return (
-    <div style={{ padding: "0 var(--spacing-lg)" }}>
-      {/* Accountability Card */}
+    <div style={{ padding: "0 20px" }}>
+      {/* Reason Modal */}
       <AnimatePresence>
-        {showAccountability && missedGoals.length > 0 && (
-          <AccountabilityCard
-            missedGoals={missedGoals}
-            explanation={accountabilityExplanation}
-            setExplanation={setAccountabilityExplanation}
-            onSubmit={submitAccountability}
-          />
+        {missedGoal && (
+          <div style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 2000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+            background: "rgba(0,0,0,0.8)",
+            backdropFilter: "blur(8px)",
+          }}>
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              style={{
+                width: "100%",
+                maxWidth: "400px",
+                background: "rgba(239, 68, 68, 0.15)",
+                border: "1px solid rgba(239, 68, 68, 0.4)",
+                borderRadius: "24px",
+                padding: "24px",
+                boxShadow: "0 20px 50px rgba(239, 68, 68, 0.2)",
+                textAlign: "center",
+              }}
+            >
+              <div style={{ fontSize: "32px", marginBottom: "12px" }}>⚠️</div>
+              <div style={{ color: "#FCA5A5", fontSize: "11px", fontWeight: 700, fontFamily: "var(--font-mono)", letterSpacing: "0.1em", marginBottom: "8px" }}>
+                URGENT ACCOUNTABILITY
+              </div>
+              <div style={{ fontSize: "18px", fontWeight: 800, color: "#fff", marginBottom: "12px", lineHeight: 1.3 }}>
+                Why did you fail to complete "{missedGoal.text}"?
+              </div>
+              
+              <textarea
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="Be honest. What was the blocker?"
+                style={{
+                  width: "100%",
+                  background: "rgba(0,0,0,0.3)",
+                  border: "1px solid rgba(239, 68, 68, 0.3)",
+                  borderRadius: "16px",
+                  padding: "16px",
+                  color: "#fff",
+                  fontSize: "14px",
+                  minHeight: "100px",
+                  fontFamily: "inherit",
+                  outline: "none",
+                  marginBottom: "20px",
+                  resize: "none",
+                }}
+              />
+              
+              <Button
+                onClick={handleMissed}
+                disabled={!reason.trim()}
+                style={{
+                  width: "100%",
+                  background: "linear-gradient(135deg, #EF4444, #B91C1C)",
+                  border: "none",
+                  color: "#fff",
+                  fontWeight: 800,
+                  opacity: reason.trim() ? 1 : 0.5,
+                }}
+              >
+                SUBMIT REASON
+              </Button>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
@@ -169,7 +179,7 @@ export function MainPage({
       <HeroSection
         greeting={greeting}
         metrics={{
-          date: dayStr(),
+          date: dayStr().toUpperCase(),
           name: state.user || "User",
           dayProgress: `${pct}%`,
           recovery: `${state.whoop.recovery}%`,
@@ -179,48 +189,34 @@ export function MainPage({
       />
 
       {/* Timeline Section */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
-        <div style={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "11px", fontWeight: 500, paddingLeft: "4px" }}>
-          TODAY'S FLOW
-        </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        <SectionLabel accent="#7C6DFA">TODAY'S FLOW</SectionLabel>
 
-        {timelineItems.length === 0 ? (
-          <div
-            style={{
-              background: "rgba(255, 255, 255, 0.1)",
-              backdropFilter: "blur(10px)",
-              borderRadius: "12px",
-              padding: "20px",
-              textAlign: "center",
-              border: "1px solid rgba(255, 255, 255, 0.15)",
-            }}
-          >
-            <div style={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "14px" }}>
-              No goals yet. Add your first goal below!
+        {state.goals.length === 0 ? (
+          <GlassCard style={{ textAlign: "center", padding: "40px 20px" }}>
+            <div style={{ color: "rgba(248, 250, 255, 0.4)", fontSize: "14px", fontWeight: 500 }}>
+              No goals set for today yet.
             </div>
-          </div>
+          </GlassCard>
         ) : (
-          timelineItems.map((item) => (
-            <TimelineItem
-              key={item.id}
-              status={item.status}
-              time={item.time}
-              title={item.title}
-              details={item.details}
-              onClick={() => {
-                if (item.status === "current" || item.status === "upcoming") {
-                  toggleGoal(item.id);
-                }
-              }}
-            >
-              {item.children}
-            </TimelineItem>
+          state.goals.map((goal) => (
+            <SwipeableGoalItem
+              key={goal.id}
+              goal={goal}
+              startEdit={startEdit}
+              setMissedGoal={setMissedGoal}
+              editingGoalId={editingGoalId}
+              editingText={editingText}
+              setEditingText={setEditingText}
+              saveEdit={saveEdit}
+              toggleGoal={toggleGoal}
+            />
           ))
         )}
       </div>
 
       {/* Add Goal Input */}
-      <div style={{ display: "flex", gap: "var(--spacing-sm)", marginTop: "var(--spacing-md)" }}>
+      <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
         <Input
           value={newGoal}
           onChange={(e) => setNewGoal(e.target.value)}
@@ -228,45 +224,37 @@ export function MainPage({
           placeholder="Add a goal for today…"
           style={{ marginBottom: 0, flex: 1 }}
         />
-        <Button onClick={addGoal}>+ Add</Button>
+        <Button onClick={addGoal} style={{ minWidth: "80px" }}>+ ADD</Button>
       </div>
 
       {/* Overseer Chat */}
-      <GlassCard style={{ marginTop: "var(--spacing-lg)" }}>
-        <SectionLabel icon="✦">OVERSEER</SectionLabel>
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--spacing-md)", marginBottom: "var(--spacing-md)" }}>
+      <GlassCard style={{ marginTop: "24px", padding: "20px" }}>
+        <SectionLabel accent="#7C6DFA" icon="✦">OVERSEER</SectionLabel>
+        
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
           <div
             style={{
-              width: "36px",
-              height: "36px",
-              borderRadius: "var(--radius-md)",
-              background: "rgba(255, 255, 255, 0.2)",
-              backdropFilter: "blur(10px)",
+              width: "40px",
+              height: "40px",
+              borderRadius: "14px",
+              background: "rgba(124, 109, 250, 0.15)",
+              border: "1px solid rgba(124, 109, 250, 0.3)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: "var(--font-lg)",
+              fontSize: "20px",
+              boxShadow: "0 0 15px rgba(124, 109, 250, 0.2)",
             }}
           >
             ✦
           </div>
           <div>
-            <div style={{ fontWeight: 600, fontSize: "var(--font-md)" }}>
-              Overseer{" "}
-              <span
-                style={{
-                  display: "inline-block",
-                  width: "7px",
-                  height: "7px",
-                  borderRadius: "50%",
-                  background: "var(--color-success)",
-                  marginLeft: "var(--spacing-xs)",
-                  animation: "pulse 2s infinite",
-                }}
-              />
+            <div style={{ fontWeight: 800, fontSize: "15px", display: "flex", alignItems: "center", gap: "6px" }}>
+              Overseer
+              <span style={{ display: "block", width: "6px", height: "6px", borderRadius: "50%", background: "#34D399", boxShadow: "0 0 8px #34D399" }} />
             </div>
-            <div style={{ fontSize: "var(--font-sm)", color: "var(--color-text-muted)" }}>
-              Knows your dashboard. Ask anything.
+            <div style={{ fontSize: "11px", color: "rgba(248, 250, 255, 0.4)", fontWeight: 500 }}>
+              AI Accountability Agent
             </div>
           </div>
         </div>
@@ -275,12 +263,13 @@ export function MainPage({
         {state.overseerLog.length > 0 && (
           <div
             style={{
-              maxHeight: "180px",
+              maxHeight: "220px",
               overflowY: "auto",
-              marginBottom: "var(--spacing-md)",
+              marginBottom: "16px",
               display: "flex",
               flexDirection: "column",
-              gap: "var(--spacing-sm)",
+              gap: "10px",
+              paddingRight: "4px",
             }}
           >
             {state.overseerLog.map((m, i) => (
@@ -291,49 +280,35 @@ export function MainPage({
                   justifyContent: m.role === "user" ? "flex-end" : "flex-start",
                 }}
               >
-                <div
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 5 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
                   style={{
-                    maxWidth: "80%",
-                    padding: "9px 13px",
-                    borderRadius: "12px",
+                    maxWidth: "85%",
+                    padding: "12px 16px",
+                    borderRadius: "16px",
                     background: m.role === "user"
-                      ? "rgba(255, 255, 255, 0.2)"
-                      : "rgba(255, 255, 255, 0.1)",
-                    backdropFilter: "blur(10px)",
-                    fontSize: "var(--font-base)",
-                    lineHeight: 1.55,
-                    color: m.role === "ai" ? "var(--color-text-muted)" : "var(--color-text)",
-                    border: "1px solid rgba(255, 255, 255, 0.15)",
+                      ? "rgba(124, 109, 250, 0.15)"
+                      : "rgba(255, 255, 255, 0.05)",
+                    border: `1px solid ${m.role === "user" ? "rgba(124, 109, 250, 0.3)" : "rgba(255, 255, 255, 0.1)"}`,
+                    fontSize: "13px",
+                    lineHeight: 1.5,
+                    color: m.role === "ai" ? "#F8FAFF" : "#F8FAFF",
+                    opacity: m.role === "ai" ? 0.8 : 1,
                   }}
                 >
                   {m.text}
-                </div>
+                </motion.div>
               </div>
             ))}
             {overseerLoading && (
-              <div
-                style={{
-                  display: "flex",
-                  gap: "4px",
-                  padding: "9px 13px",
-                  background: "rgba(255, 255, 255, 0.1)",
-                  backdropFilter: "blur(10px)",
-                  borderRadius: "12px",
-                  width: "fit-content",
-                  border: "1px solid rgba(255, 255, 255, 0.15)",
-                }}
-              >
+              <div style={{ display: "flex", gap: "4px", padding: "12px 16px", background: "rgba(255, 255, 255, 0.05)", borderRadius: "16px", width: "fit-content", border: "1px solid rgba(255, 255, 255, 0.1)" }}>
                 {[0, 1, 2].map((i) => (
-                  <span
+                  <motion.span
                     key={i}
-                    style={{
-                      width: "6px",
-                      height: "6px",
-                      borderRadius: "50%",
-                      background: "var(--color-text-muted)",
-                      display: "inline-block",
-                      animation: `blink 1.4s ${i * 0.2}s infinite`,
-                    }}
+                    animate={{ opacity: [0.3, 1, 0.3] }}
+                    transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+                    style={{ width: "5px", height: "5px", borderRadius: "50%", background: "rgba(248, 250, 255, 0.4)" }}
                   />
                 ))}
               </div>
@@ -346,38 +321,148 @@ export function MainPage({
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "var(--spacing-md)",
-            background: "rgba(255, 255, 255, 0.1)",
-            backdropFilter: "blur(10px)",
-            borderRadius: "var(--radius-md)",
-            padding: "10px 14px",
-            border: "1px solid rgba(255, 255, 255, 0.15)",
+            gap: "10px",
+            background: "rgba(255, 255, 255, 0.05)",
+            borderRadius: "16px",
+            padding: "6px 6px 6px 14px",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
           }}
         >
-          <span style={{ fontSize: "var(--font-md)", color: "var(--color-text-muted)" }}>🎤</span>
           <input
             value={state.overseerInput}
             onChange={(e) => setState((prev) => ({ ...prev, overseerInput: e.target.value }))}
             onKeyDown={(e) => e.key === "Enter" && sendMsg()}
-            placeholder="Message Overseer"
+            placeholder="Message Overseer…"
             style={{
               flex: 1,
               background: "none",
               border: "none",
-              color: "var(--color-text)",
-              fontSize: "var(--font-base)",
-              fontFamily: "var(--font-sans)",
+              color: "#F8FAFF",
+              fontSize: "14px",
+              fontFamily: "inherit",
+              outline: "none",
             }}
           />
-          <Button
+          <motion.button
             onClick={sendMsg}
             disabled={overseerLoading}
-            style={{ width: "32px", height: "32px", borderRadius: "50%", padding: 0 }}
+            whileTap={{ scale: 0.9 }}
+            style={{
+              width: "36px",
+              height: "36px",
+              borderRadius: "12px",
+              background: "#7C6DFA",
+              border: "none",
+              color: "#fff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              opacity: overseerLoading ? 0.5 : 1,
+              boxShadow: "0 4px 12px rgba(124, 109, 250, 0.3)",
+            }}
           >
-            ↑
-          </Button>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m5 12 7-7 7 7M12 19V5"/>
+            </svg>
+          </motion.button>
         </div>
       </GlassCard>
     </div>
   );
 }
+
+const SwipeableGoalItem = ({ goal, startEdit, setMissedGoal, editingGoalId, editingText, setEditingText, saveEdit, toggleGoal }) => {
+  const x = useMotionValue(0);
+  const opacity = useTransform(x, [0, -40], [0, 1]);
+
+  const handleEditClick = () => {
+    animate(x, 0, { duration: 0.3 });
+    startEdit(goal);
+  };
+
+  const handleSkipClick = () => {
+    animate(x, 0, { duration: 0.3 });
+    setMissedGoal(goal);
+  };
+
+  return (
+    <div style={{ position: "relative", overflow: "hidden", borderRadius: "20px" }}>
+      {/* Swipe Actions (Behind) */}
+      <motion.div style={{
+        position: "absolute",
+        inset: 0,
+        display: "flex",
+        justifyContent: "flex-end",
+        zIndex: 0,
+        opacity,
+      }}>
+        <button
+          onClick={handleEditClick}
+          style={{
+            width: "70px",
+            background: "#7C6DFA",
+            border: "none",
+            color: "#fff",
+            fontWeight: 700,
+            fontSize: "12px",
+            cursor: "pointer",
+          }}
+        >
+          EDIT
+        </button>
+        <button
+          onClick={handleSkipClick}
+          style={{
+            width: "70px",
+            background: "#EF4444",
+            border: "none",
+            color: "#fff",
+            fontWeight: 700,
+            fontSize: "12px",
+            cursor: "pointer",
+          }}
+        >
+          SKIP
+        </button>
+      </motion.div>
+
+      {/* Goal Card (Swipeable) */}
+      <motion.div
+        drag="x"
+        dragConstraints={{ left: goal.missed ? 0 : -140, right: 0 }}
+        dragElastic={goal.missed ? 0 : 0.1}
+        style={{ position: "relative", zIndex: 1, x }}
+      >
+        <TimelineItem
+          status={goal.missed ? "missed" : goal.done ? "completed" : "current"}
+          time={goal.time || "Now"}
+          title={editingGoalId === goal.id ? (
+            <div style={{ display: "flex", gap: "8px", width: "100%" }}>
+              <input
+                autoFocus
+                value={editingText}
+                onChange={(e) => setEditingText(e.target.value)}
+                onBlur={saveEdit}
+                onKeyDown={(e) => e.key === "Enter" && saveEdit()}
+                style={{
+                  flex: 1,
+                  background: "rgba(255, 255, 255, 0.05)",
+                  border: "1px solid #7C6DFA",
+                  borderRadius: "8px",
+                  padding: "4px 8px",
+                  color: "#F8FAFF",
+                  fontSize: "inherit",
+                  fontFamily: "inherit",
+                  outline: "none",
+                }}
+              />
+            </div>
+          ) : goal.text}
+          details={goal.missed ? goal.reason : goal.done ? "Completed" : "In Progress"}
+          onClick={() => toggleGoal(goal.id)}
+        />
+      </motion.div>
+    </div>
+  );
+};
