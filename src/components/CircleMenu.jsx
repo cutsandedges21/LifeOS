@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { AnimatePresence, motion, useAnimationControls } from "framer-motion";
 
+// containerSize is read once at module load. Resizing past 380px mid-session
+// does not update it — acceptable since users rarely resize during a session.
 const CONSTANTS = {
   itemSize: 48,
   triggerSize: 56,
-  containerSize: 220,
+  containerSize: typeof window !== "undefined" && window.matchMedia("(max-width: 380px)").matches ? 200 : 220,
   openStagger: 0.025,
   closeStagger: 0.05,
 };

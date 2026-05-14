@@ -49,7 +49,9 @@ const INITIAL_STATE = {
   },
   missedGoalsHistory: [],
   gymSkips: [],
+  gymVisits: [],
   lastStreakCheck: "",
+  lastGoalsReset: "",
 };
 
 export const useLifeOSState = () => {

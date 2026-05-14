@@ -222,7 +222,7 @@ export function FinancesPage({ state, setState }) {
     : transactions.filter((t) => t.type === txnFilter);
 
   return (
-    <div style={{ padding: "0 20px" }}>
+    <div style={{ padding: "0 clamp(14px, 4.5vw, 20px)" }}>
       {/* ── NET WORTH ─────────────────────────────────────────────── */}
  
 
@@ -230,18 +230,18 @@ export function FinancesPage({ state, setState }) {
       <GlassCard style={{ marginTop: "24px", padding: "20px" }}>
         <SectionLabel accent="#34D399">INCOME VS EXPENSE · LAST 6 MONTHS</SectionLabel>
 
-        <div style={{ display: "flex", gap: "12px", marginBottom: "20px" }}>
-          <div style={{ flex: 1, background: "rgba(52, 211, 153, 0.08)", padding: "12px", borderRadius: "14px", border: "1px solid rgba(52, 211, 153, 0.18)" }}>
+        <div className="stat-row" style={{ display: "flex", gap: "12px", marginBottom: "20px" }}>
+          <div style={{ flex: 1, background: "rgba(52, 211, 153, 0.08)", padding: "12px", borderRadius: "14px", border: "1px solid rgba(52, 211, 153, 0.18)", minWidth: 0 }}>
             <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "rgba(248,250,255,0.45)", letterSpacing: "0.12em", marginBottom: "4px" }}>THIS MONTH IN</div>
-            <div style={{ color: "#34D399", fontWeight: 800, fontSize: "17px" }}>{fmt$(monthIncome)}</div>
+            <div className="stat-val" style={{ color: "#34D399", fontWeight: 800, fontSize: "17px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fmt$(monthIncome)}</div>
           </div>
-          <div style={{ flex: 1, background: "rgba(248, 113, 113, 0.08)", padding: "12px", borderRadius: "14px", border: "1px solid rgba(248, 113, 113, 0.18)" }}>
+          <div style={{ flex: 1, background: "rgba(248, 113, 113, 0.08)", padding: "12px", borderRadius: "14px", border: "1px solid rgba(248, 113, 113, 0.18)", minWidth: 0 }}>
             <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "rgba(248,250,255,0.45)", letterSpacing: "0.12em", marginBottom: "4px" }}>THIS MONTH OUT</div>
-            <div style={{ color: "#F87171", fontWeight: 800, fontSize: "17px" }}>{fmt$(monthExpense)}</div>
+            <div className="stat-val" style={{ color: "#F87171", fontWeight: 800, fontSize: "17px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fmt$(monthExpense)}</div>
           </div>
-          <div style={{ flex: 1, background: monthNet >= 0 ? "rgba(124,109,250,0.10)" : "rgba(248, 113, 113, 0.08)", padding: "12px", borderRadius: "14px", border: `1px solid ${monthNet >= 0 ? "rgba(124,109,250,0.25)" : "rgba(248,113,113,0.18)"}` }}>
+          <div style={{ flex: 1, background: monthNet >= 0 ? "rgba(124,109,250,0.10)" : "rgba(248, 113, 113, 0.08)", padding: "12px", borderRadius: "14px", border: `1px solid ${monthNet >= 0 ? "rgba(124,109,250,0.25)" : "rgba(248,113,113,0.18)"}`, minWidth: 0 }}>
             <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "rgba(248,250,255,0.45)", letterSpacing: "0.12em", marginBottom: "4px" }}>NET</div>
-            <div style={{ color: monthNet >= 0 ? "#7C6DFA" : "#F87171", fontWeight: 800, fontSize: "17px" }}>
+            <div className="stat-val" style={{ color: monthNet >= 0 ? "#7C6DFA" : "#F87171", fontWeight: 800, fontSize: "17px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {monthNet >= 0 ? "+" : ""}{fmt$(monthNet)}
             </div>
           </div>
@@ -281,7 +281,7 @@ export function FinancesPage({ state, setState }) {
                     }}
                   />
                 </div>
-                <div style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "rgba(248,250,255,0.45)", letterSpacing: "0.08em" }}>
+                <div className="chart-label" style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "rgba(248,250,255,0.45)", letterSpacing: "0.08em" }}>
                   {m.label.toUpperCase()}
                 </div>
               </div>

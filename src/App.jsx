@@ -117,28 +117,26 @@ const SettingsIcon = () => (
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-// Calculate streak increment for each completed day since lastCheck (exclusive)
-// up to yesterday (inclusive). A day counts toward the streak unless it has a
-// matching entry in skips[{date}].
-function evaluateStreak(lastCheck, skips) {
-  const today = todayISO();
-  if (!lastCheck) return { increment: 0, newLastCheck: today };
+// Streak = number of consecutive days ending today that have a gym visit.
+// Walking backward from today, count each day with a matching entry in
+// gymVisits[{date}]. The first gap (no visit) ends the streak. A skip counts
+// as a gap because the user didn't go to the gym that day.
+function computeStreak(visits) {
+  const visitDates = new Set((visits || []).map((v) => v.date));
+  let streak = 0;
+  const day = new Date();
+  day.setHours(0, 0, 0, 0);
 
-  let increment = 0;
-  const skipDates = new Set((skips || []).map((s) => s.date));
-
-  const start = new Date(lastCheck + "T00:00:00");
-  const end = new Date(today + "T00:00:00");
-  const day = new Date(start);
-  day.setDate(day.getDate() + 1); // first completed day after lastCheck
-
-  while (day < end) {
+  while (true) {
     const iso = day.toISOString().slice(0, 10);
-    if (!skipDates.has(iso)) increment += 1;
-    day.setDate(day.getDate() + 1);
+    if (visitDates.has(iso)) {
+      streak += 1;
+      day.setDate(day.getDate() - 1);
+    } else {
+      break;
+    }
   }
-
-  return { increment, newLastCheck: today };
+  return streak;
 }
 
 export default function LifeOS() {
@@ -165,18 +163,37 @@ export default function LifeOS() {
     chatRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [state.overseerLog]);
 
-  // Streak rollover — runs after state loads and again whenever the calendar date changes
+  // Streak — recomputed from gymVisits whenever visits change or a new day starts.
+  // Counts consecutive days ending today that have a visit. Missing a day
+  // (no visit, whether skipped explicitly or just unanswered) resets to 0.
   useEffect(() => {
     if (!isLoaded) return;
     const today = todayISO();
-    if (state.lastStreakCheck === today) return;
+    const newStreak = computeStreak(state.gymVisits);
 
-    const { increment, newLastCheck } = evaluateStreak(state.lastStreakCheck, state.gymSkips);
-    setState((prev) => ({
-      ...prev,
-      streak: (prev.streak || 0) + increment,
-      lastStreakCheck: newLastCheck,
-    }));
+    if (newStreak !== state.streak || state.lastStreakCheck !== today) {
+      setState((prev) => ({
+        ...prev,
+        streak: newStreak,
+        lastStreakCheck: today,
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, time.toDateString(), state.gymVisits]);
+
+  // Goals midnight reset — clears state.goals at the start of each new day.
+  // First boot just stamps the date (no clearing) so we don't surprise the user.
+  useEffect(() => {
+    if (!isLoaded) return;
+    const today = todayISO();
+    if (state.lastGoalsReset === today) return;
+
+    setState((prev) => {
+      if (!prev.lastGoalsReset) {
+        return { ...prev, lastGoalsReset: today };
+      }
+      return { ...prev, goals: [], lastGoalsReset: today };
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, time.toDateString()]);
 
@@ -299,7 +316,7 @@ export default function LifeOS() {
               {dayStr().toUpperCase()}
             </span>
             <div style={{ width: "1px", height: "12px", background: "rgba(255, 255, 255, 0.15)" }} />
-            <span style={{
+            <span className="pill-workout" style={{
               fontFamily: "var(--font-mono)",
               fontSize: "10px",
               color: pageAccent,
@@ -318,8 +335,19 @@ export default function LifeOS() {
         </motion.div>
       </div>
 
-      {/* Mini Health Bar Overlay */}
-      <div style={{ padding: "16px 20px 0", display: "flex", gap: "12px", alignItems: "center", overflowX: "auto", scrollbarWidth: "none" }}>
+      {/* Mini Health Bar Overlay — mirrors the 4 hero metrics: DAY, RECOVERY, STREAK, GOALS */}
+      <div className="health-strip" style={{ paddingTop: "16px" }}>
+      <div style={{ padding: "0 20px", display: "flex", gap: "12px", alignItems: "center", overflowX: "auto", scrollbarWidth: "none" }}>
+        {[
+          { label: "DAY", val: `${pct}%`, color: "#7C6DFA" },
+        ].map(({ label, val, color }) => (
+          <div key={label} style={{ display: "flex", gap: "4px", alignItems: "center", background: "rgba(255, 255, 255, 0.05)", padding: "4px 10px", borderRadius: "20px", border: "1px solid rgba(255, 255, 255, 0.1)" }}>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "rgba(248, 250, 255, 0.4)", letterSpacing: "0.05em" }}>{label}</span>
+            <span style={{ fontSize: "11px", fontWeight: 700, color }}>{val}</span>
+          </div>
+        ))}
+
+        {/* Sleep — keeps the animated ring for visual interest */}
         <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "rgba(255, 255, 255, 0.05)", padding: "4px 10px", borderRadius: "20px", border: "1px solid rgba(255, 255, 255, 0.1)" }}>
           <svg width="18" height="18" viewBox="0 0 32 32">
             <circle cx="16" cy="16" r="14" fill="none" stroke="rgba(255, 255, 255, 0.15)" strokeWidth="3" />
@@ -328,29 +356,30 @@ export default function LifeOS() {
               cy="16"
               r="14"
               fill="none"
-              stroke={state.whoop.recovery >= 80   ? "#34D399" : state.whoop.recovery >= 55 ? "#FBBF24" : state.whoop.recovery >= 34 ? "#7C6DFA" : "#F87171"}
+              stroke={state.whoop.sleep >= 80   ? "#34D399" : state.whoop.sleep >= 55 ? "#FBBF24" : state.whoop.sleep >= 34 ? "#7C6DFA" : "#F87171"}
               strokeWidth="3"
               strokeDasharray="88"
               initial={{ strokeDashoffset: 88 }}
-              animate={{ strokeDashoffset: 88 * (1 - state.whoop.recovery / 100) }}
+              animate={{ strokeDashoffset: 88 * (1 - state.whoop.sleep / 100) }}
               transition={{ duration: 1.5, ease: "easeOut" }}
               strokeLinecap="round"
               transform="rotate(-90 16 16)"
             />
           </svg>
-          <span style={{ fontSize: "11px", fontWeight: 800 }}>{state.whoop.recovery}%</span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "rgba(248, 250, 255, 0.4)", letterSpacing: "0.05em" }}>SLEEP</span>
+          <span style={{ fontSize: "11px", fontWeight: 700, color: "#34D399" }}>{state.whoop.sleep}%</span>
         </div>
-        
+
         {[
-          { label: "SLEEP", val: `${state.whoop.sleep}%`, color: "#34D399" },
-          { label: "STRAIN", val: state.whoop.strain, color: "#FBBF24" },
-          { label: "STREAK", val: `${state.streak}D`, color: "#7C6DFA" },
+          { label: "STREAK", val: `${state.streak}D`, color: "#FBBF24" },
+          { label: "GOALS", val: `${state.goals.filter(g => g.done).length}/${state.goals.length}`, color: "#22D3EE" },
         ].map(({ label, val, color }) => (
           <div key={label} style={{ display: "flex", gap: "4px", alignItems: "center", background: "rgba(255, 255, 255, 0.05)", padding: "4px 10px", borderRadius: "20px", border: "1px solid rgba(255, 255, 255, 0.1)" }}>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "rgba(248, 250, 255, 0.4)", letterSpacing: "0.05em" }}>{label}</span>
             <span style={{ fontSize: "11px", fontWeight: 700, color }}>{val}</span>
           </div>
         ))}
+      </div>
       </div>
 
       {/* Page Content */}
@@ -410,7 +439,7 @@ function SettingsPage({ state, setState, resetState }) {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   return (
-    <div style={{ padding: "20px" }}>
+    <div style={{ padding: "clamp(14px, 4.5vw, 20px)" }}>
       <div style={{ fontSize: "32px", fontWeight: 900, marginBottom: "24px", letterSpacing: "-0.02em" }}>
         Settings
       </div>

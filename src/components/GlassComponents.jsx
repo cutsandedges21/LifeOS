@@ -246,7 +246,7 @@ export const AccountabilityCard = ({ missedGoals, explanation, setExplanation, o
 export const HeroSection = ({ greeting, metrics }) => {
   const metricList = [
     { label: "DAY", value: metrics.dayProgress, color: "#7C6DFA" },
-    { label: "RECOVERY", value: metrics.recovery, color: "#34D399" },
+    { label: "SLEEP", value: metrics.sleep, color: "#34D399" },
     { label: "STREAK", value: `${metrics.streak}d`, color: "#FBBF24" },
     { label: "GOALS", value: metrics.goals, color: "#22D3EE" },
   ];
@@ -280,13 +280,13 @@ export const HeroSection = ({ greeting, metrics }) => {
       <div style={{ fontSize: "11px", color: "rgba(248, 250, 255, 0.4)", marginBottom: "4px", fontFamily: "'DM Mono', monospace", letterSpacing: "0.1em" }}>
         {metrics.date}
       </div>
-      <div style={{ fontSize: "24px", fontWeight: 800, color: "#F8FAFF", lineHeight: 1.2, marginBottom: "18px" }}>
+      <div style={{ fontSize: "clamp(18px, 5.5vw, 24px)", fontWeight: 800, color: "#F8FAFF", lineHeight: 1.2, marginBottom: "18px" }}>
         {greeting}
         <span style={{ color: "#7C6DFA" }}> {metrics.name}</span>
       </div>
 
       {/* 4 metric chips */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "8px" }}>
+      <div className="hero-metrics" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "8px" }}>
         {metricList.map((m) => (
           <div
             key={m.label}

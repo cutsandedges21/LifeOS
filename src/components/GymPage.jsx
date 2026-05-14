@@ -71,16 +71,27 @@ export function GymPage({ state, setState }) {
     setShowSkipModal(false);
   };
 
+  const logVisit = () => {
+    setState((prev) => ({
+      ...prev,
+      gymVisits: [
+        { id: Date.now(), date: todayISO() },
+        ...(prev.gymVisits || []),
+      ],
+    }));
+  };
+
   const currentExercises = state.gymExercises?.[selectedDay] || [];
   const currentSplit = state.gymSplit?.[selectedDay] || "";
 
   const skippedToday = (state.gymSkips || []).some((s) => s.date === todayISO());
+  const visitedToday = (state.gymVisits || []).some((v) => v.date === todayISO());
 
   return (
-    <div style={{ padding: "0 20px" }}>
+    <div style={{ padding: "0 clamp(14px, 4.5vw, 20px)" }}>
       {/* Day Selector */}
       <GlassCard style={{ padding: "16px", marginBottom: "16px" }} glow="#FBBF24">
-        <div style={{ display: "flex", justifyContent: "space-between", gap: "4px" }}>
+        <div className="gym-days" style={{ display: "flex", justifyContent: "space-between", gap: "4px" }}>
           {days.map((day) => {
             const isActive = selectedDay === day;
             const isToday = getTodayDay() === day;
@@ -160,7 +171,7 @@ export function GymPage({ state, setState }) {
                   onChange={(e) => setNewExercise({ ...newExercise, name: e.target.value })}
                   placeholder="Bench Press"
                 />
-                <div style={{ display: "flex", gap: "10px" }}>
+                <div className="exercise-form-row" style={{ display: "flex", gap: "10px" }}>
                   <Input
                     label="Weight (lbs)"
                     value={newExercise.weight}
@@ -168,20 +179,22 @@ export function GymPage({ state, setState }) {
                     placeholder="225 lbs"
                     style={{ flex: 1 }}
                   />
-                  <Input
-                    label="Sets"
-                    value={newExercise.sets}
-                    onChange={(e) => setNewExercise({ ...newExercise, sets: e.target.value })}
-                    placeholder="3"
-                    style={{ flex: 0.8 }}
-                  />
-                  <Input
-                    label="Reps"
-                    value={newExercise.reps}
-                    onChange={(e) => setNewExercise({ ...newExercise, reps: e.target.value })}
-                    placeholder="10"
-                    style={{ flex: 0.8 }}
-                  />
+                  <div className="exercise-form-small-row" style={{ display: "flex", gap: "10px", flex: 1.6 }}>
+                    <Input
+                      label="Sets"
+                      value={newExercise.sets}
+                      onChange={(e) => setNewExercise({ ...newExercise, sets: e.target.value })}
+                      placeholder="3"
+                      style={{ flex: 1, marginBottom: 0 }}
+                    />
+                    <Input
+                      label="Reps"
+                      value={newExercise.reps}
+                      onChange={(e) => setNewExercise({ ...newExercise, reps: e.target.value })}
+                      placeholder="10"
+                      style={{ flex: 1, marginBottom: 0 }}
+                    />
+                  </div>
                 </div>
                 <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
                   <Button onClick={addExercise} variant="primary" style={{ flex: 2, background: "#FBBF24", color: "#000" }}>Add Exercise</Button>
@@ -243,9 +256,28 @@ export function GymPage({ state, setState }) {
         </div>
       </div>
 
-      {/* ── Skip Today Button ──────────────────────────────────────── */}
-      <div style={{ marginTop: "32px" }}>
-        {skippedToday ? (
+      {/* ── Today's Gym Status ─────────────────────────────────────── */}
+      <div style={{ marginTop: "32px", display: "flex", flexDirection: "column", gap: "10px" }}>
+        {visitedToday ? (
+          <div
+            style={{
+              width: "100%",
+              padding: "16px",
+              borderRadius: "16px",
+              background: "rgba(52, 211, 153, 0.10)",
+              border: "1px solid rgba(52, 211, 153, 0.35)",
+              color: "#34D399",
+              textAlign: "center",
+              fontSize: "13px",
+              fontWeight: 700,
+              fontFamily: "var(--font-mono)",
+              letterSpacing: "0.08em",
+              boxShadow: "0 4px 20px rgba(52,211,153,0.15)",
+            }}
+          >
+            ✓ GYM HIT TODAY · STREAK ACTIVE
+          </div>
+        ) : skippedToday ? (
           <div
             style={{
               width: "100%",
@@ -261,30 +293,58 @@ export function GymPage({ state, setState }) {
               letterSpacing: "0.08em",
             }}
           >
-            GYM SKIPPED TODAY · STREAK PAUSED
+            GYM SKIPPED TODAY · STREAK RESET
           </div>
         ) : (
-          <motion.button
-            onClick={() => setShowSkipModal(true)}
-            whileTap={{ scale: 0.97 }}
-            whileHover={{ scale: 1.01 }}
-            style={{
-              width: "100%",
-              padding: "16px",
-              borderRadius: "16px",
-              border: "1px solid rgba(248, 113, 113, 0.45)",
-              background: "linear-gradient(135deg, rgba(248,113,113,0.18) 0%, rgba(239,68,68,0.22) 100%)",
-              color: "#F87171",
-              fontSize: "14px",
-              fontWeight: 800,
-              cursor: "pointer",
-              letterSpacing: "0.08em",
-              fontFamily: "var(--font-mono)",
-              boxShadow: "0 4px 20px rgba(248,113,113,0.18)",
-            }}
-          >
-            ✕ SKIPPED GYM TODAY
-          </motion.button>
+          <>
+            <motion.button
+              onClick={logVisit}
+              whileTap={{ scale: 0.97 }}
+              whileHover={{ scale: 1.01 }}
+              style={{
+                width: "100%",
+                padding: "16px",
+                borderRadius: "16px",
+                border: "1px solid rgba(52, 211, 153, 0.45)",
+                background: "linear-gradient(135deg, rgba(52,211,153,0.20) 0%, rgba(16,185,129,0.25) 100%)",
+                color: "#34D399",
+                fontSize: "14px",
+                fontWeight: 800,
+                cursor: "pointer",
+                letterSpacing: "0.08em",
+                fontFamily: "var(--font-mono)",
+                boxShadow: "0 4px 20px rgba(52,211,153,0.22)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "10px",
+              }}
+            >
+              GYM HIT TODAY · STREAK ACTIVE
+            </motion.button>
+
+            <motion.button
+              onClick={() => setShowSkipModal(true)}
+              whileTap={{ scale: 0.97 }}
+              whileHover={{ scale: 1.01 }}
+              style={{
+                width: "100%",
+                padding: "16px",
+                borderRadius: "16px",
+                border: "1px solid rgba(248, 113, 113, 0.45)",
+                background: "linear-gradient(135deg, rgba(248,113,113,0.18) 0%, rgba(239,68,68,0.22) 100%)",
+                color: "#F87171",
+                fontSize: "14px",
+                fontWeight: 800,
+                cursor: "pointer",
+                letterSpacing: "0.08em",
+                fontFamily: "var(--font-mono)",
+                boxShadow: "0 4px 20px rgba(248,113,113,0.18)",
+              }}
+            >
+              GYM SKIPPED TODAY · STREAK RESET
+            </motion.button>
+          </>
         )}
       </div>
 

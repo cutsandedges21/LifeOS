@@ -57,7 +57,7 @@ export function HealthPage({ state, setState }) {
   const curvePoints = getCurrentWeekSleep(entries);
 
   return (
-    <div style={{ padding: "0 20px" }}>
+    <div style={{ padding: "0 clamp(14px, 4.5vw, 20px)" }}>
       {/* Rest & Recovery Hero */}
       <GlassCard style={{ padding: "30px 24px", textAlign: "center" }}>
         <SectionLabel accent={recoveryColor}>REST & RECOVERY</SectionLabel>

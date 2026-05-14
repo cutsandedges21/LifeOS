@@ -19,7 +19,11 @@
       "Bash(curl -sS http://localhost:3000/src/hooks/useTheme.js)",
       "Bash(npm ls *)",
       "Bash(sed -i 's|chromium-1217/chrome-win/chrome.exe|chromium-1217/chrome-win64/chrome.exe|' /tmp/check-app.cjs)",
-      "Bash(node /tmp/check-app.cjs)"
+      "Bash(node /tmp/check-app.cjs)",
+      "Bash(bash *)",
+      "mcp__plugin_playwright_playwright__browser_resize",
+      "mcp__plugin_playwright_playwright__browser_evaluate",
+      "mcp__plugin_playwright_playwright__browser_close"
     ]
   }
 }

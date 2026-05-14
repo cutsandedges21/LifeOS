@@ -98,7 +98,7 @@ export function MainPage({
   }));
 
   return (
-    <div style={{ padding: "0 20px" }}>
+    <div style={{ padding: "0 clamp(14px, 4.5vw, 20px)" }}>
       {/* Reason Modal */}
       <AnimatePresence>
         {missedGoal && (
@@ -182,7 +182,7 @@ export function MainPage({
           date: dayStr().toUpperCase(),
           name: state.user || "User",
           dayProgress: `${pct}%`,
-          recovery: `${state.whoop.recovery}%`,
+          sleep: `${state.whoop.sleep}%`,
           streak: state.streak,
           goals: `${completedGoals}/${state.goals.length}`,
         }}

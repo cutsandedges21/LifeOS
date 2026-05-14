@@ -1,0 +1,62 @@
+/* LifeOS responsive overrides — mobile only.
+   All rules are scoped under @media (max-width: ...) so desktop is untouched.
+   !important is required because the codebase uses inline styles, which win
+   over plain CSS rules; !important is the standard mechanism to override
+   inline styles from a stylesheet. */
+
+/* Global safety net: prevent any horizontal overflow.
+   Scoped to descendants of <main> so the CircleMenu (sibling of <main>,
+   absolutely-positioned at bottom) can still extend beyond its container. */
+html, body { overflow-x: hidden; }
+main * { max-width: 100%; }
+
+/* Edge-fade hint that the health strip is horizontally scrollable.
+   Applied at all widths so the affordance is consistent. */
+.health-strip { position: relative; }
+.health-strip::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 24px;
+  background: linear-gradient(to left, #080810, transparent);
+  pointer-events: none;
+}
+
+/* Fix #1, #4, #5, #6: structural layout changes that need real breakpoints. */
+@media (max-width: 400px) {
+  /* Hero metric grid: 4-col → 2×2 */
+  .hero-metrics { grid-template-columns: 1fr 1fr !important; }
+
+  /* Add-Exercise form: stack Weight on top, Sets+Reps remain in row below */
+  .exercise-form-row { flex-direction: column !important; }
+  .exercise-form-row > * { flex: 1 1 auto !important; }
+
+  /* Finances Income/Expense/Net stat row */
+  .stat-row > div { padding: 10px 8px !important; }
+  .stat-row .stat-val { font-size: 14px !important; }
+
+  /* Finances chart month labels */
+  .chart-label { font-size: 9px !important; }
+}
+
+/* Fix #7, #10: tightening at iPhone-mini / small-Android sizes. */
+@media (max-width: 380px) {
+  .pill-workout {
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+    vertical-align: bottom;
+  }
+}
+
+/* Fix #3: gym day selector — extra-tight tier. */
+@media (max-width: 375px) {
+  .gym-days button {
+    padding: 8px 0 !important;
+    font-size: 10px !important;
+  }
+}
