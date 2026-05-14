@@ -340,37 +340,7 @@ export default function LifeOS() {
       <div style={{ padding: "0 20px", display: "flex", gap: "12px", alignItems: "center", overflowX: "auto", scrollbarWidth: "none" }}>
         {[
           { label: "DAY", val: `${pct}%`, color: "#7C6DFA" },
-        ].map(({ label, val, color }) => (
-          <div key={label} style={{ display: "flex", gap: "4px", alignItems: "center", background: "rgba(255, 255, 255, 0.05)", padding: "4px 10px", borderRadius: "20px", border: "1px solid rgba(255, 255, 255, 0.1)" }}>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "rgba(248, 250, 255, 0.4)", letterSpacing: "0.05em" }}>{label}</span>
-            <span style={{ fontSize: "11px", fontWeight: 700, color }}>{val}</span>
-          </div>
-        ))}
-
-        {/* Sleep — keeps the animated ring for visual interest */}
-        <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "rgba(255, 255, 255, 0.05)", padding: "4px 10px", borderRadius: "20px", border: "1px solid rgba(255, 255, 255, 0.1)" }}>
-          <svg width="18" height="18" viewBox="0 0 32 32">
-            <circle cx="16" cy="16" r="14" fill="none" stroke="rgba(255, 255, 255, 0.15)" strokeWidth="3" />
-            <motion.circle
-              cx="16"
-              cy="16"
-              r="14"
-              fill="none"
-              stroke={state.whoop.sleep >= 80   ? "#34D399" : state.whoop.sleep >= 55 ? "#FBBF24" : state.whoop.sleep >= 34 ? "#7C6DFA" : "#F87171"}
-              strokeWidth="3"
-              strokeDasharray="88"
-              initial={{ strokeDashoffset: 88 }}
-              animate={{ strokeDashoffset: 88 * (1 - state.whoop.sleep / 100) }}
-              transition={{ duration: 1.5, ease: "easeOut" }}
-              strokeLinecap="round"
-              transform="rotate(-90 16 16)"
-            />
-          </svg>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "rgba(248, 250, 255, 0.4)", letterSpacing: "0.05em" }}>SLEEP</span>
-          <span style={{ fontSize: "11px", fontWeight: 700, color: "#34D399" }}>{state.whoop.sleep}%</span>
-        </div>
-
-        {[
+          { label: "SLEEP", val: `${state.whoop.sleep}%`, color: "#34D399" },
           { label: "STREAK", val: `${state.streak}D`, color: "#FBBF24" },
           { label: "GOALS", val: `${state.goals.filter(g => g.done).length}/${state.goals.length}`, color: "#22D3EE" },
         ].map(({ label, val, color }) => (
