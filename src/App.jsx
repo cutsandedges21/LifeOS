@@ -336,7 +336,7 @@ export default function LifeOS() {
       </div>
 
       {/* Mini Health Bar Overlay — mirrors the 4 hero metrics: DAY, RECOVERY, STREAK, GOALS */}
-      <div className="health-strip" style={{ paddingTop: "16px" }}>
+      <div className="health-strip" style={{ paddingTop: "24px", paddingBottom: "16px" }}>
       <div style={{ padding: "0 20px", display: "flex", gap: "12px", alignItems: "center", overflowX: "auto", scrollbarWidth: "none" }}>
         {[
           { label: "DAY", val: `${pct}%`, color: "#7C6DFA" },
@@ -344,7 +344,7 @@ export default function LifeOS() {
           { label: "STREAK", val: `${state.streak}D`, color: "#FBBF24" },
           { label: "GOALS", val: `${state.goals.filter(g => g.done).length}/${state.goals.length}`, color: "#22D3EE" },
         ].map(({ label, val, color }) => (
-          <div key={label} style={{ display: "flex", gap: "4px", alignItems: "center", background: "rgba(255, 255, 255, 0.05)", padding: "4px 10px", borderRadius: "20px", border: "1px solid rgba(255, 255, 255, 0.1)" }}>
+          <div key={label} style={{ display: "flex", gap: "5px", alignItems: "center", background: "rgba(255, 255, 255, 0.05)", padding: "4px 10px", borderRadius: "20px", border: "1px solid rgba(255, 255, 255, 0.1)" }}>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "rgba(248, 250, 255, 0.4)", letterSpacing: "0.05em" }}>{label}</span>
             <span style={{ fontSize: "11px", fontWeight: 700, color }}>{val}</span>
           </div>

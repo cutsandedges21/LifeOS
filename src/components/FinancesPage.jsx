@@ -227,7 +227,7 @@ export function FinancesPage({ state, setState }) {
  
 
       {/* ── INCOME VS EXPENSE CHART ───────────────────────────────── */}
-      <GlassCard style={{ marginTop: "24px", padding: "20px" }}>
+      <GlassCard style={{ padding: "20px" }}>
         <SectionLabel accent="#34D399">INCOME VS EXPENSE · LAST 6 MONTHS</SectionLabel>
 
         <div className="stat-row" style={{ display: "flex", gap: "12px", marginBottom: "20px" }}>
