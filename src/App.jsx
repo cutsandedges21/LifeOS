@@ -7,8 +7,9 @@ import { BrandPage } from "./components/BrandPage.jsx";
 import { HealthPage } from "./components/HealthPage.jsx";
 import { GymPage } from "./components/GymPage.jsx";
 import { AnimatedBackground } from "./components/AnimatedBackground.jsx";
+import { CircleMenu } from "./components/CircleMenu.jsx";
 import { getPageAccent, getPageTint } from "./theme/index.js";
-import { dayStr, timeStr } from "./utils/formatters.js";
+import { dayStr, timeStr, getTodayDay } from "./utils/formatters.js";
 
 const GREETINGS = [
   "Let's lock in,",
@@ -94,9 +95,10 @@ const BrandIcon = () => (
   </svg>
 );
 
-const HeartIcon = () => (
+const ZzzIcon = () => (
   <svg width="22" height="30" viewBox="0 0 24 19" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+    <path d="M2 4h6l-6 8h6" />
+    <path d="M14 10h6l-6 8h6" />
   </svg>
 );
 
@@ -112,6 +114,32 @@ const SettingsIcon = () => (
     <circle cx="12" cy="12" r="3" />
   </svg>
 );
+
+const todayISO = () => new Date().toISOString().slice(0, 10);
+
+// Calculate streak increment for each completed day since lastCheck (exclusive)
+// up to yesterday (inclusive). A day counts toward the streak unless it has a
+// matching entry in skips[{date}].
+function evaluateStreak(lastCheck, skips) {
+  const today = todayISO();
+  if (!lastCheck) return { increment: 0, newLastCheck: today };
+
+  let increment = 0;
+  const skipDates = new Set((skips || []).map((s) => s.date));
+
+  const start = new Date(lastCheck + "T00:00:00");
+  const end = new Date(today + "T00:00:00");
+  const day = new Date(start);
+  day.setDate(day.getDate() + 1); // first completed day after lastCheck
+
+  while (day < end) {
+    const iso = day.toISOString().slice(0, 10);
+    if (!skipDates.has(iso)) increment += 1;
+    day.setDate(day.getDate() + 1);
+  }
+
+  return { increment, newLastCheck: today };
+}
 
 export default function LifeOS() {
   const { state, setState, resetState, isLoaded } = useLifeOSState();
@@ -136,6 +164,21 @@ export default function LifeOS() {
   useEffect(() => {
     chatRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [state.overseerLog]);
+
+  // Streak rollover — runs after state loads and again whenever the calendar date changes
+  useEffect(() => {
+    if (!isLoaded) return;
+    const today = todayISO();
+    if (state.lastStreakCheck === today) return;
+
+    const { increment, newLastCheck } = evaluateStreak(state.lastStreakCheck, state.gymSkips);
+    setState((prev) => ({
+      ...prev,
+      streak: (prev.streak || 0) + increment,
+      lastStreakCheck: newLastCheck,
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, time.toDateString()]);
 
 
   // Overseer send
@@ -263,7 +306,7 @@ export default function LifeOS() {
               fontWeight: 700,
               letterSpacing: "0.05em"
             }}>
-              {state.workoutDay || "REST"}
+              {state.gymSplit?.[getTodayDay()] || "REST"}
             </span>
           </div>
           
@@ -346,83 +389,19 @@ export default function LifeOS() {
         </AnimatePresence>
       </main>
 
-      {/* Bottom Nav - Floating Island Pill */}
-      <div
-        style={{
-          position: "fixed",
-          bottom: "20px",
-          left: "20px",
-          right: "20px",
-          zIndex: 1000,
-          display: "flex",
-          justifyContent: "center",
-        }}
-      >
-        <motion.div
-          initial={{ y: 50, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          style={{
-            background: "rgba(255, 255, 255, 0.08)",
-            backdropFilter: "blur(24px) saturate(180%)",
-            WebkitBackdropFilter: "blur(24px) saturate(180%)",
-            borderRadius: "32px",
-            border: "1px solid rgba(255, 255, 255, 0.1)",
-            display: "flex",
-            padding: "6px",
-            gap: "4px",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
-          }}
-        >
-          {[
-            { id: "main", label: "Main", icon: <HomeIcon />, color: "#7C6DFA" },
-            { id: "finances", label: "Finances", icon: <FinIcon />, color: "#34D399" },
-            { id: "brand", label: "Brand", icon: <BrandIcon />, color: "#22D3EE" },
-            { id: "health", label: "Health", icon: <HeartIcon />, color: "#F87171" },
-            { id: "gym", label: "Gym", icon: <GymIcon />, color: "#FBBF24" },
-            { id: "settings", label: "Settings", icon: <SettingsIcon />, color: "#94A3B8" },
-          ].map(({ id, label, icon, color }) => {
-            const isActive = tab === id;
-            return (
-              <motion.button
-                key={id}
-                onClick={() => setTab(id)}
-                whileTap={{ scale: 0.9 }}
-                style={{
-                  position: "relative",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: "10px",
-                  background: "none",
-                  border: "none",
-                  color: isActive ? "#F8FAFF" : "rgba(248, 250, 255, 0.4)",
-                  borderRadius: "24px",
-                  transition: "color 0.3s ease",
-                  width: "48px",
-                  height: "48px",
-                }}
-              >
-                {isActive && (
-                  <motion.div
-                    layoutId="active-pill"
-                    style={{
-                      position: "absolute",
-                      inset: 0,
-                      background: color,
-                      borderRadius: "24px",
-                      zIndex: -1,
-                      boxShadow: `0 0 20px ${color}60`,
-                    }}
-                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                  />
-                )}
-                <div style={{ position: "relative", zIndex: 1 }}>{icon}</div>
-              </motion.button>
-            );
-          })}
-        </motion.div>
-      </div>
+      {/* Bottom Nav - CircleMenu */}
+      <CircleMenu
+        activeId={tab}
+        onSelect={setTab}
+        items={[
+          { id: "health", label: "Sleep", icon: <ZzzIcon />, color: "#F87171", labelAbove: true, labelLeftSide: true },
+          { id: "finances", label: "Finances", icon: <FinIcon />, color: "#34D399", labelAbove: true, labelLeftSide: true },
+          { id: "brand", label: "Brand", icon: <BrandIcon />, color: "#22D3EE", hidden: true },
+          { id: "main", label: "Home", icon: <HomeIcon />, color: "#7C6DFA", labelAbove: true },
+          { id: "gym", label: "Gym", icon: <GymIcon />, color: "#FBBF24", labelAbove: true },
+          { id: "settings", label: "Settings", icon: <SettingsIcon />, color: "#94A3B8", labelAbove: true },
+        ]}
+      />
     </div>
   );
 }
@@ -527,6 +506,49 @@ function SettingsPage({ state, setState, resetState }) {
             />
           </div>
         </div>
+      </div>
+
+      {/* Skipped Gym History */}
+      <div
+        style={{
+          background: "rgba(255, 255, 255, 0.05)",
+          backdropFilter: "blur(20px)",
+          borderRadius: "24px",
+          padding: "20px",
+          marginBottom: "16px",
+          border: "1px solid rgba(255, 255, 255, 0.1)",
+        }}
+      >
+        <div style={{ fontSize: "11px", fontWeight: 700, marginBottom: "16px", color: "rgba(248, 250, 255, 0.4)", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
+          REASONS WHY I SKIPPED THE GYM
+        </div>
+
+        {(!state.gymSkips || state.gymSkips.length === 0) ? (
+          <div style={{ fontSize: "13px", color: "rgba(248, 250, 255, 0.4)", textAlign: "center", padding: "20px 0" }}>
+            No gym skips logged. Stay consistent.
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            {state.gymSkips.map((item) => (
+              <div key={item.id} style={{
+                background: "rgba(248, 113, 113, 0.05)",
+                border: "1px solid rgba(248, 113, 113, 0.15)",
+                borderRadius: "16px",
+                padding: "14px",
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "6px" }}>
+                  <div style={{ fontSize: "13px", fontWeight: 700, color: "#F87171", fontFamily: "var(--font-mono)", letterSpacing: "0.05em" }}>
+                    GYM SKIPPED
+                  </div>
+                  <div style={{ fontSize: "9px", color: "#F87171", fontFamily: "var(--font-mono)" }}>{item.date}</div>
+                </div>
+                <div style={{ fontSize: "13px", color: "rgba(248, 250, 255, 0.65)", fontStyle: "italic", lineHeight: 1.4 }}>
+                  "{item.reason}"
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Missed Goals History */}

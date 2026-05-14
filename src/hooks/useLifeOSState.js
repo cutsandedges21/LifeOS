@@ -12,8 +12,9 @@ const INITIAL_STATE = {
     assets: 0,
     liabilities: 0,
     subs: [],
-    orders: [],
-    budget: [],
+    transactions: [],
+    budgets: [],
+    savingsGoals: [],
   },
   businesses: [],
   brand: {
@@ -47,6 +48,8 @@ const INITIAL_STATE = {
     sleepTime: "00:00",
   },
   missedGoalsHistory: [],
+  gymSkips: [],
+  lastStreakCheck: "",
 };
 
 export const useLifeOSState = () => {

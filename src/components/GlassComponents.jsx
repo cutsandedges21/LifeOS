@@ -389,7 +389,7 @@ export const PlatformCard = ({ platform, handle, followers, growth, icon, onRemo
 );
 
 // ── BusinessCard ──────────────────────────────────────────────────────
-export const BusinessCard = ({ name, revenue, expenses, orders, color, onRemove, delay = 0 }) => {
+export const BusinessCard = ({ name, revenue, expenses, clients, color, onRemove, delay = 0 }) => {
   const profit = revenue - expenses;
   const margin = revenue > 0 ? Math.max(0, Math.min(100, Math.round((profit / revenue) * 100))) : 0;
 
@@ -408,8 +408,17 @@ export const BusinessCard = ({ name, revenue, expenses, orders, color, onRemove,
         marginBottom: "10px",
       }}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-        <div style={{ color: "#F8FAFF", fontSize: "15px", fontWeight: 700 }}>{name}</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <div style={{
+            width: "8px",
+            height: "8px",
+            borderRadius: "50%",
+            background: color || "#7C6DFA",
+            boxShadow: `0 0 10px ${color || "#7C6DFA"}90`,
+          }} />
+          <div style={{ color: "#F8FAFF", fontSize: "17px", fontWeight: 800, letterSpacing: "-0.01em" }}>{name}</div>
+        </div>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <div style={{ color: profit >= 0 ? "#34D399" : "#F87171", fontSize: "16px", fontWeight: 800 }}>
             {profit >= 0 ? "+" : ""}${profit.toLocaleString()}
@@ -424,12 +433,15 @@ export const BusinessCard = ({ name, revenue, expenses, orders, color, onRemove,
           )}
         </div>
       </div>
+      <div style={{ color: "rgba(248, 250, 255, 0.4)", fontSize: "10px", fontFamily: "'DM Mono', monospace", letterSpacing: "0.14em", marginBottom: "12px", marginLeft: "18px" }}>
+        BUSINESS · {margin}% MARGIN
+      </div>
 
       <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
         {[
           { label: "REV", value: `$${revenue.toLocaleString()}`, color: "#34D399" },
           { label: "EXP", value: `$${expenses.toLocaleString()}`, color: "#F87171" },
-          { label: "ORD", value: orders, color: "#F8FAFF" },
+          { label: "CLIENTS", value: clients ?? 0, color: "#22D3EE" },
         ].map((item) => (
           <div key={item.label} style={{ flex: 1, background: "rgba(255, 255, 255, 0.05)", borderRadius: "10px", padding: "8px", textAlign: "center" }}>
             <div style={{ color: "rgba(248, 250, 255, 0.4)", fontSize: "9px", fontFamily: "'DM Mono', monospace", letterSpacing: "0.1em" }}>{item.label}</div>
