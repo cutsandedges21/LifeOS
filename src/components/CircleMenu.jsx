@@ -46,8 +46,8 @@ function MenuItem({ item, index, totalItems, isOpen, isActive, onSelect }) {
     <div
       style={{
         position: "absolute",
-        top: "50%",
-        left: "50%",
+        top: "80%",
+        left: "51%",
         width: 0,
         height: 0,
         pointerEvents: "none",
