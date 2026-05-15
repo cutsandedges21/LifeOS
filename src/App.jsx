@@ -592,6 +592,99 @@ function SettingsPage({ state, setState, resetState }) {
         )}
       </div>
 
+      {/* About & How to Use */}
+      <div
+        style={{
+          background: "rgba(255, 255, 255, 0.05)",
+          backdropFilter: "blur(20px)",
+          borderRadius: "24px",
+          padding: "20px",
+          marginBottom: "16px",
+          border: "1px solid rgba(255, 255, 255, 0.1)",
+        }}
+      >
+        <div style={{ fontSize: "11px", fontWeight: 700, marginBottom: "16px", color: "rgba(248, 250, 255, 0.4)", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
+          ABOUT & HOW TO USE
+        </div>
+
+        <div style={{ fontSize: "14px", fontWeight: 700, color: "#F8FAFF", marginBottom: "8px" }}>
+          Welcome to LifeOS
+        </div>
+        <div style={{ fontSize: "13px", color: "rgba(248, 250, 255, 0.7)", lineHeight: 1.55, marginBottom: "20px" }}>
+          LifeOS is your personal accountability dashboard. Track your goals, sleep, finances, and gym — all in one place. The Overseer keeps you honest, calls out the slips, and rewards the wins.
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+          {[
+            {
+              accent: "#7C6DFA",
+              label: "HOME",
+              title: "Daily flow + Overseer",
+              body: "See your day at a glance. Check off tasks, hit your habits, and chat with the Overseer — a brutally honest AI coach that knows your full context.",
+            },
+            {
+              accent: "#F87171",
+              label: "SLEEP",
+              title: "Wake / Sleep Tracking",
+              body: "Log when you went to bed and when you got up. Grow your sleep score. Hit 8+ hours for a full recovery.",
+            },
+            {
+              accent: "#34D399",
+              label: "FINANCES",
+              title: "Income, Expenses, Net worth",
+              body: "Track money in and money out. Set savings goals and watch your monthly expenses shrink. Numbers don't lie.",
+            },
+            {
+              accent: "#FBBF24",
+              label: "GYM",
+              title: "Workouts + Skip Log",
+              body: "Log sessions. If you skip, you have to write down why. Those excuses show up here in Settings so you can see your patterns.",
+            },
+            {
+              accent: "rgba(248, 250, 255, 0.6)",
+              label: "SETTINGS",
+              title: "Name, History, Reset",
+              body: "Edit your name, review every skipped gym session and missed goal, and reset everything from the Danger Zone if you need a fresh start.",
+            },
+          ].map((item) => (
+            <div
+              key={item.label}
+              style={{
+                background: "rgba(255, 255, 255, 0.03)",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                borderRadius: "16px",
+                padding: "14px",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                <div style={{ fontSize: "14px", fontWeight: 700, color: "#F8FAFF" }}>{item.title}</div>
+                <div style={{ fontSize: "10px", fontWeight: 700, color: item.accent, fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
+                  {item.label}
+                </div>
+              </div>
+              <div style={{ fontSize: "12px", color: "rgba(248, 250, 255, 0.6)", lineHeight: 1.5 }}>
+                {item.body}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{
+          marginTop: "20px",
+          padding: "14px",
+          background: "rgba(124, 109, 250, 0.08)",
+          border: "1px solid rgba(124, 109, 250, 0.2)",
+          borderRadius: "16px",
+        }}>
+          <div style={{ fontSize: "10px", fontWeight: 700, color: "#7C6DFA", fontFamily: "var(--font-mono)", letterSpacing: "0.1em", marginBottom: "6px" }}>
+            TIP
+          </div>
+          <div style={{ fontSize: "12px", color: "rgba(248, 250, 255, 0.7)", lineHeight: 1.5 }}>
+            Use the circle menu at the bottom to switch pages. Everything you log is saved locally — no account, no cloud, just you and your data.
+          </div>
+        </div>
+      </div>
+
       {/* Danger Zone */}
       <div
         style={{
