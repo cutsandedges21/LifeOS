@@ -36,6 +36,7 @@ export function FinancesPage({ state, setState }) {
   const [showAddBudget, setShowAddBudget] = useState(false);
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [txnFilter, setTxnFilter] = useState("all"); // all | income | expense
+  const [celebratedGoal, setCelebratedGoal] = useState(null); // { name, color }
 
   const [newBusiness, setNewBusiness] = useState({
     name: "",
@@ -166,15 +167,22 @@ export function FinancesPage({ state, setState }) {
     finances: { ...prev.finances, savingsGoals: (prev.finances.savingsGoals || []).filter((g) => g.id !== id) },
   }));
 
-  const adjustGoalSaved = (id, delta) => setState((prev) => ({
-    ...prev,
-    finances: {
-      ...prev.finances,
-      savingsGoals: (prev.finances.savingsGoals || []).map((g) =>
-        g.id === id ? { ...g, saved: Math.max(0, Number(g.saved || 0) + delta) } : g
-      ),
-    },
-  }));
+  const adjustGoalSaved = (id, delta) => {
+    setState((prev) => {
+      const updated = (prev.finances.savingsGoals || []).map((g) => {
+        if (g.id !== id) return g;
+        const wasDone = g.target > 0 && Number(g.saved || 0) >= Number(g.target);
+        const newSaved = Math.max(0, Number(g.saved || 0) + delta);
+        const nowDone = g.target > 0 && newSaved >= Number(g.target);
+        if (!wasDone && nowDone) {
+          // Trigger celebration after state settles
+          setTimeout(() => setCelebratedGoal({ name: g.name, color: g.color }), 100);
+        }
+        return { ...g, saved: newSaved };
+      });
+      return { ...prev, finances: { ...prev.finances, savingsGoals: updated } };
+    });
+  };
 
   // ── Derived data ────────────────────────────────────────────────────
   const subTotal = subs.reduce((s, x) => s + Number(x.cost || 0), 0);
@@ -182,19 +190,23 @@ export function FinancesPage({ state, setState }) {
   const thisMonth = todayISO().slice(0, 7);
   const thisMonthTxns = transactions.filter((t) => monthKey(t.date) === thisMonth);
   const monthIncome = thisMonthTxns.filter((t) => t.type === "income").reduce((s, t) => s + Number(t.amount || 0), 0);
-  const monthExpense = thisMonthTxns.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount || 0), 0);
+  const monthTxnExpense = thisMonthTxns.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount || 0), 0);
+  const monthExpense = monthTxnExpense + subTotal; // includes subscriptions
   const monthNet = monthIncome - monthExpense;
 
   // Last 6 months income/expense data for chart
   const chartData = useMemo(() => {
     const months = [];
     const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       const monthTxns = transactions.filter((t) => monthKey(t.date) === key);
       const income = monthTxns.filter((t) => t.type === "income").reduce((s, t) => s + Number(t.amount || 0), 0);
-      const expense = monthTxns.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount || 0), 0);
+      const txnExpense = monthTxns.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount || 0), 0);
+      // Add subscriptions to current month only
+      const expense = txnExpense + (key === currentMonthKey ? subTotal : 0);
       months.push({
         key,
         label: d.toLocaleDateString("en-US", { month: "short" }),
@@ -203,7 +215,7 @@ export function FinancesPage({ state, setState }) {
       });
     }
     return months;
-  }, [transactions]);
+  }, [transactions, subs]);
 
   const chartMax = useMemo(() => {
     const max = Math.max(...chartData.map((m) => Math.max(m.income, m.expense)), 1);
@@ -221,10 +233,56 @@ export function FinancesPage({ state, setState }) {
     ? transactions
     : transactions.filter((t) => t.type === txnFilter);
 
+  // ── All-time totals ──────────────────────────────────────────────────
+  const allTimeIncome  = transactions.filter((t) => t.type === "income").reduce((s, t) => s + Number(t.amount || 0), 0);
+  const allTimeExpense = transactions.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount || 0), 0);
+  const allTimeNet     = allTimeIncome - allTimeExpense;
+
   return (
     <div style={{ padding: "0 clamp(14px, 4.5vw, 20px)" }}>
-      {/* ── NET WORTH ─────────────────────────────────────────────── */}
- 
+      {/* ── ALL-TIME STATS ────────────────────────────────────────── */}
+      <GlassCard style={{ padding: "20px 20px 18px", marginBottom: "16px" }}>
+        <SectionLabel accent="#7C6DFA">ALL TIME</SectionLabel>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0" }}>
+
+          <div style={{ textAlign: "center", padding: "4px 0" }}>
+            <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "rgba(248,250,255,0.4)", letterSpacing: "0.12em", marginBottom: "6px" }}>INCOME</div>
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              style={{ fontSize: "clamp(15px, 4vw, 22px)", fontWeight: 900, color: "#34D399", letterSpacing: "-0.02em", lineHeight: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+            >
+              {fmt$(allTimeIncome)}
+            </motion.div>
+          </div>
+
+          <div style={{ textAlign: "center", padding: "4px 0", borderLeft: "1px solid rgba(255,255,255,0.07)", borderRight: "1px solid rgba(255,255,255,0.07)" }}>
+            <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "rgba(248,250,255,0.4)", letterSpacing: "0.12em", marginBottom: "6px" }}>EXPENSES</div>
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.08 }}
+              style={{ fontSize: "clamp(15px, 4vw, 22px)", fontWeight: 900, color: "#F87171", letterSpacing: "-0.02em", lineHeight: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+            >
+              {fmt$(allTimeExpense)}
+            </motion.div>
+          </div>
+
+          <div style={{ textAlign: "center", padding: "4px 0" }}>
+            <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "rgba(248,250,255,0.4)", letterSpacing: "0.12em", marginBottom: "6px" }}>NET</div>
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.16 }}
+              style={{ fontSize: "clamp(15px, 4vw, 22px)", fontWeight: 900, color: allTimeNet >= 0 ? "#7C6DFA" : "#F87171", letterSpacing: "-0.02em", lineHeight: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+            >
+              {allTimeNet >= 0 ? "+" : ""}{fmt$(allTimeNet)}
+            </motion.div>
+          </div>
+
+        </div>
+      </GlassCard>
 
       {/* ── INCOME VS EXPENSE CHART ───────────────────────────────── */}
       <GlassCard style={{ padding: "20px" }}>
@@ -232,11 +290,11 @@ export function FinancesPage({ state, setState }) {
 
         <div className="stat-row" style={{ display: "flex", gap: "12px", marginBottom: "20px" }}>
           <div style={{ flex: 1, background: "rgba(52, 211, 153, 0.08)", padding: "12px", borderRadius: "14px", border: "1px solid rgba(52, 211, 153, 0.18)", minWidth: 0 }}>
-            <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "rgba(248,250,255,0.45)", letterSpacing: "0.12em", marginBottom: "4px" }}>THIS MONTH IN</div>
+            <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "rgba(248,250,255,0.45)", letterSpacing: "0.12em", marginBottom: "4px" }}>IN</div>
             <div className="stat-val" style={{ color: "#34D399", fontWeight: 800, fontSize: "17px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fmt$(monthIncome)}</div>
           </div>
           <div style={{ flex: 1, background: "rgba(248, 113, 113, 0.08)", padding: "12px", borderRadius: "14px", border: "1px solid rgba(248, 113, 113, 0.18)", minWidth: 0 }}>
-            <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "rgba(248,250,255,0.45)", letterSpacing: "0.12em", marginBottom: "4px" }}>THIS MONTH OUT</div>
+            <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "rgba(248,250,255,0.45)", letterSpacing: "0.12em", marginBottom: "4px" }}>OUT</div>
             <div className="stat-val" style={{ color: "#F87171", fontWeight: 800, fontSize: "17px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fmt$(monthExpense)}</div>
           </div>
           <div style={{ flex: 1, background: monthNet >= 0 ? "rgba(124,109,250,0.10)" : "rgba(248, 113, 113, 0.08)", padding: "12px", borderRadius: "14px", border: `1px solid ${monthNet >= 0 ? "rgba(124,109,250,0.25)" : "rgba(248,113,113,0.18)"}`, minWidth: 0 }}>
@@ -301,7 +359,7 @@ export function FinancesPage({ state, setState }) {
         </div>
       </GlassCard>
 
-      {/* ── ACTIVE BUSINESSES ─────────────────────────────────────── */}
+      {/* ── ACTIVE BUSINESSES ─────────────────────────────────────── 
       <div style={{ marginTop: "24px" }}>
         <SectionLabel accent="#34D399">ACTIVE BUSINESSES</SectionLabel>
 
@@ -393,6 +451,7 @@ export function FinancesPage({ state, setState }) {
           </GlassCard>
         )}
       </div>
+      */}
 
       {/* ── SAVINGS GOALS ─────────────────────────────────────────── */}
       <GlassCard style={{ marginTop: "24px" }}>
@@ -406,6 +465,7 @@ export function FinancesPage({ state, setState }) {
           )}
           {savingsGoals.map((g) => {
             const pct = g.target > 0 ? Math.min(100, Math.round((g.saved / g.target) * 100)) : 0;
+            const isComplete = pct >= 100;
             const remaining = Math.max(0, g.target - g.saved);
             return (
               <motion.div
@@ -413,10 +473,10 @@ export function FinancesPage({ state, setState }) {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 style={{
-                  background: "rgba(255,255,255,0.05)",
+                  background: isComplete ? "rgba(52,211,153,0.07)" : "rgba(255,255,255,0.05)",
                   borderRadius: "14px",
                   padding: "14px",
-                  border: "1px solid rgba(255,255,255,0.08)",
+                  border: isComplete ? "1px solid rgba(52,211,153,0.35)" : "1px solid rgba(255,255,255,0.08)",
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
@@ -436,7 +496,28 @@ export function FinancesPage({ state, setState }) {
                     </div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    <div style={{ color: g.color, fontWeight: 800, fontSize: "15px" }}>{pct}%</div>
+                    {isComplete ? (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        style={{
+                          background: "linear-gradient(135deg, #34D399, #10B981)",
+                          borderRadius: "20px",
+                          padding: "2px 10px",
+                          fontSize: "10px",
+                          fontWeight: 800,
+                          color: "#fff",
+                          letterSpacing: "0.08em",
+                          fontFamily: "var(--font-mono)",
+                          boxShadow: "0 0 12px rgba(52,211,153,0.5)",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        COMPLETE ✓
+                      </motion.div>
+                    ) : (
+                      <div style={{ color: g.color, fontWeight: 800, fontSize: "15px" }}>{pct}%</div>
+                    )}
                     <button
                       onClick={() => removeGoal(g.id)}
                       style={{ background: "none", border: "none", color: "rgba(248,250,255,0.3)", cursor: "pointer", fontSize: "16px" }}
@@ -888,6 +969,119 @@ export function FinancesPage({ state, setState }) {
           </div>
         )}
       </GlassCard>
+
+      {/* ── GOAL COMPLETE POPUP ───────────────────────────────────── */}
+      <AnimatePresence>
+        {celebratedGoal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setCelebratedGoal(null)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.65)",
+              backdropFilter: "blur(8px)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 9999,
+              padding: "24px",
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.7, opacity: 0, y: 40 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.8, opacity: 0, y: 20 }}
+              transition={{ type: "spring", stiffness: 300, damping: 22 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: "linear-gradient(145deg, rgba(20,28,24,0.98), rgba(10,20,16,0.98))",
+                border: "1.5px solid rgba(52,211,153,0.45)",
+                borderRadius: "28px",
+                padding: "40px 32px 32px",
+                textAlign: "center",
+                maxWidth: "340px",
+                width: "100%",
+                boxShadow: "0 0 80px rgba(52,211,153,0.25), 0 24px 60px rgba(0,0,0,0.6)",
+                position: "relative",
+                overflow: "hidden",
+              }}
+            >
+              {/* Glowing ring */}
+              <motion.div
+                animate={{ scale: [1, 1.15, 1], opacity: [0.4, 0.7, 0.4] }}
+                transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+                style={{
+                  position: "absolute",
+                  inset: "-30px",
+                  borderRadius: "50%",
+                  background: "radial-gradient(ellipse at center, rgba(52,211,153,0.12) 0%, transparent 70%)",
+                  pointerEvents: "none",
+                }}
+              />
+
+              {/* Trophy emoji */}
+              <motion.div
+                animate={{ rotate: [-8, 8, -8], y: [0, -4, 0] }}
+                transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+                style={{ fontSize: "60px", lineHeight: 1, marginBottom: "20px" }}
+              >
+                🏆
+              </motion.div>
+
+              <div style={{
+                fontSize: "22px",
+                fontWeight: 900,
+                color: "#34D399",
+                marginBottom: "8px",
+                letterSpacing: "-0.02em",
+              }}>
+                Goal Reached!
+              </div>
+
+              <div style={{
+                fontSize: "15px",
+                fontWeight: 700,
+                color: "#F8FAFF",
+                marginBottom: "6px",
+              }}>
+                {celebratedGoal.name}
+              </div>
+
+              <div style={{
+                fontSize: "13px",
+                color: "rgba(248,250,255,0.5)",
+                marginBottom: "28px",
+                lineHeight: 1.5,
+              }}>
+                You've hit 100% of your savings target.{"\n"}Keep it up! 💪
+              </div>
+
+              <motion.button
+                whileTap={{ scale: 0.96 }}
+                onClick={() => setCelebratedGoal(null)}
+                style={{
+                  width: "100%",
+                  padding: "14px",
+                  borderRadius: "14px",
+                  border: "none",
+                  background: "linear-gradient(135deg, #34D399, #10B981)",
+                  color: "#fff",
+                  fontWeight: 800,
+                  fontSize: "15px",
+                  cursor: "pointer",
+                  boxShadow: "0 4px 20px rgba(52,211,153,0.4)",
+                  letterSpacing: "0.02em",
+                }}
+              >
+                Awesome! 🎉
+              </motion.button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -453,7 +453,7 @@ function SettingsPage({ state, setState, resetState }) {
         </div>
       </div>
 
-      {/* Schedule */}
+      {/* Schedule
       <div
         style={{
           background: "rgba(255, 255, 255, 0.05)",
@@ -506,6 +506,7 @@ function SettingsPage({ state, setState, resetState }) {
           </div>
         </div>
       </div>
+       */}
 
       {/* Skipped Gym History */}
       <div
