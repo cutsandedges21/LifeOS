@@ -93,8 +93,8 @@ function MenuItem({ item, index, totalItems, isOpen, isActive, onSelect }) {
           height: CONSTANTS.itemSize,
           borderRadius: "50%",
           background: isActive ? item.color : MUTED,
-          backdropFilter: "blur(20px) saturate(180%)",
-          WebkitBackdropFilter: "blur(20px) saturate(180%)",
+          backdropFilter: IS_MOBILE ? "blur(8px) saturate(140%)" : "blur(20px) saturate(180%)",
+          WebkitBackdropFilter: IS_MOBILE ? "blur(8px) saturate(140%)" : "blur(20px) saturate(180%)",
           color: isActive ? "#F8FAFF" : "rgba(248, 250, 255, 0.7)",
           border: `1px solid ${isActive ? item.color : "rgba(255,255,255,0.10)"}`,
           boxShadow: isActive
@@ -284,8 +284,6 @@ export function CircleMenu({ items, activeId, onSelect }) {
                 position: "fixed",
                 inset: 0,
                 background: "rgba(0,0,0,0.35)",
-                backdropFilter: "blur(4px)",
-                WebkitBackdropFilter: "blur(4px)",
                 zIndex: -1,
                 pointerEvents: "auto",
               }}
