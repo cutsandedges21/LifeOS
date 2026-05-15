@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { AnimatePresence, motion, useAnimationControls } from "framer-motion";
 
-// containerSize is read once at module load. Resizing past 380px mid-session
-// does not update it — acceptable since users rarely resize during a session.
+// Read once at module load. Resizing past 380px mid-session does not update —
+// acceptable since users rarely resize during a session.
+const IS_MOBILE = typeof window !== "undefined" && window.matchMedia("(max-width: 380px)").matches;
+
 const CONSTANTS = {
   itemSize: 48,
   triggerSize: 56,
-  containerSize: typeof window !== "undefined" && window.matchMedia("(max-width: 380px)").matches ? 200 : 220,
+  containerSize: IS_MOBILE ? 200 : 220,
   openStagger: 0.025,
   closeStagger: 0.05,
 };
@@ -19,6 +21,10 @@ const FALL_EASE = [0.55, 0.06, 0.78, 0.32];
 const FALL_Y = CONSTANTS.containerSize / 2;
 
 const MUTED = "rgba(255, 255, 255, 0.08)";
+// Mobile GPUs choke when several backdrop-filter layers animate at once,
+// which is what was freezing the open animation. Use a solid-ish background
+// and skip backdrop-filter / filter:blur on small screens.
+const MUTED_MOBILE = "rgba(30, 32, 40, 0.92)";
 
 // Half-circle arc spanning from left (-π) to right (0), peaking straight up
 const pointOnCircle = (i, n, r) => {
@@ -65,12 +71,18 @@ function MenuItem({ item, index, totalItems, isOpen, isActive, onSelect }) {
         whileTap={{ scale: 0.92 }}
         transition={
           isOpen
-            ? {
-                delay: index * CONSTANTS.openStagger,
-                type: "spring",
-                stiffness: 320,
-                damping: 28,
-              }
+            ? IS_MOBILE
+              ? {
+                  delay: index * CONSTANTS.openStagger,
+                  duration: 0.32,
+                  ease: SMOOTH_EASE,
+                }
+              : {
+                  delay: index * CONSTANTS.openStagger,
+                  type: "spring",
+                  stiffness: 320,
+                  damping: 28,
+                }
             : {
                 delay: (totalItems - index - 1) * CONSTANTS.closeStagger,
                 duration: 0.6,
@@ -84,9 +96,9 @@ function MenuItem({ item, index, totalItems, isOpen, isActive, onSelect }) {
           width: CONSTANTS.itemSize,
           height: CONSTANTS.itemSize,
           borderRadius: "50%",
-          background: isActive ? item.color : MUTED,
-          backdropFilter: "blur(20px) saturate(180%)",
-          WebkitBackdropFilter: "blur(20px) saturate(180%)",
+          background: isActive ? item.color : (IS_MOBILE ? MUTED_MOBILE : MUTED),
+          backdropFilter: IS_MOBILE ? "none" : "blur(20px) saturate(180%)",
+          WebkitBackdropFilter: IS_MOBILE ? "none" : "blur(20px) saturate(180%)",
           color: isActive ? "#F8FAFF" : "rgba(248, 250, 255, 0.7)",
           border: `1px solid ${isActive ? item.color : "rgba(255,255,255,0.10)"}`,
           boxShadow: isActive
@@ -192,9 +204,9 @@ function MenuTrigger({ isOpen, setIsOpen, closeAnimationCallback, activeColor, a
           {isOpen ? (
             <motion.span
               key="menu-close"
-              initial={{ opacity: 0, filter: "blur(10px)", rotate: -90 }}
-              animate={{ opacity: 1, filter: "blur(0px)", rotate: 0 }}
-              exit={{ opacity: 0, filter: "blur(10px)", rotate: 90 }}
+              initial={{ opacity: 0, ...(IS_MOBILE ? {} : { filter: "blur(10px)" }), rotate: -90 }}
+              animate={{ opacity: 1, ...(IS_MOBILE ? {} : { filter: "blur(0px)" }), rotate: 0 }}
+              exit={{ opacity: 0, ...(IS_MOBILE ? {} : { filter: "blur(10px)" }), rotate: 90 }}
               transition={{ duration: 0.2 }}
               style={{ display: "flex" }}
             >
@@ -203,9 +215,9 @@ function MenuTrigger({ isOpen, setIsOpen, closeAnimationCallback, activeColor, a
           ) : (
             <motion.span
               key="menu-open"
-              initial={{ opacity: 0, filter: "blur(10px)", scale: 0.5 }}
-              animate={{ opacity: 1, filter: "blur(0px)", scale: 1 }}
-              exit={{ opacity: 0, filter: "blur(10px)", scale: 0.5 }}
+              initial={{ opacity: 0, ...(IS_MOBILE ? {} : { filter: "blur(10px)" }), scale: 0.5 }}
+              animate={{ opacity: 1, ...(IS_MOBILE ? {} : { filter: "blur(0px)" }), scale: 1 }}
+              exit={{ opacity: 0, ...(IS_MOBILE ? {} : { filter: "blur(10px)" }), scale: 0.5 }}
               transition={{ duration: 0.2 }}
               style={{ display: "flex" }}
             >
@@ -276,8 +288,8 @@ export function CircleMenu({ items, activeId, onSelect }) {
                 position: "fixed",
                 inset: 0,
                 background: "rgba(0,0,0,0.35)",
-                backdropFilter: "blur(4px)",
-                WebkitBackdropFilter: "blur(4px)",
+                backdropFilter: IS_MOBILE ? "none" : "blur(4px)",
+                WebkitBackdropFilter: IS_MOBILE ? "none" : "blur(4px)",
                 zIndex: -1,
                 pointerEvents: "auto",
               }}
