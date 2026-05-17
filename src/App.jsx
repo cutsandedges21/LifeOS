@@ -8,7 +8,7 @@ import { HealthPage } from "./components/HealthPage.jsx";
 import { GymPage } from "./components/GymPage.jsx";
 import { AnimatedBackground } from "./components/AnimatedBackground.jsx";
 import { CircleMenu } from "./components/CircleMenu.jsx";
-import { getPageAccent, getPageTint } from "./theme/index.js";
+import { getPageAccent, getPageTint, cssVarsForTheme } from "./theme/index.js";
 import { dayStr, timeStr, getTodayDay } from "./utils/formatters.js";
 
 const GREETINGS = [
@@ -36,10 +36,13 @@ async function askOverseer(messages, ctx, retries = 2) {
 
   try {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey,
+        },
         body: JSON.stringify({
           contents: messages.map((m) => ({
             role: m.role === "ai" || m.role === "assistant" ? "model" : "user",
@@ -57,7 +60,14 @@ async function askOverseer(messages, ctx, retries = 2) {
         await new Promise((r) => setTimeout(r, 5000));
         return askOverseer(messages, ctx, retries - 1);
       }
-      throw new Error(`HTTP error: ${res.status}`);
+      let detail = `HTTP ${res.status}`;
+      try {
+        const errBody = await res.json();
+        if (errBody?.error?.message) detail = errBody.error.message;
+      } catch (_) {
+        // body not JSON — keep status-only detail
+      }
+      throw new Error(detail);
     }
 
     const d = await res.json();
@@ -68,7 +78,7 @@ async function askOverseer(messages, ctx, retries = 2) {
     return d.candidates?.[0]?.content?.parts?.[0]?.text ?? "…";
   } catch (error) {
     console.error("Overseer API error:", error);
-    return "Sorry, I'm having trouble connecting. Try again later.";
+    return `Overseer offline: ${error.message || "unknown error"}`;
   }
 }
 
@@ -146,6 +156,15 @@ export default function LifeOS() {
   const [overseerLoading, setOverseerLoading] = useState(false);
   const [greeting, setGreeting] = useState(GREETINGS[0]);
   const chatRef = useRef(null);
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
   const pct = Math.floor((time.getHours() * 60 + time.getMinutes()) / 14.4);
 
   useEffect(() => {
@@ -162,6 +181,16 @@ export default function LifeOS() {
   useEffect(() => {
     chatRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [state.overseerLog]);
+
+  // Theme — write CSS variables onto :root whenever theme changes.
+  // Components read these via var(--token), so the swap is instant and
+  // requires no rerender of consumers.
+  useEffect(() => {
+    const vars = cssVarsForTheme(state.theme || "dark");
+    Object.entries(vars).forEach(([k, v]) => {
+      document.documentElement.style.setProperty(k, v);
+    });
+  }, [state.theme]);
 
   // Streak — recomputed from gymVisits whenever visits change or a new day starts.
   // Counts consecutive days ending today that have a visit. Missing a day
@@ -197,17 +226,39 @@ export default function LifeOS() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, time.toDateString()]);
 
+  // Overseer message limit reset — resets message count at the start of each new day.
+  useEffect(() => {
+    if (!isLoaded) return;
+    const today = todayISO();
+    if (state.lastOverseerReset === today) return;
+
+    setState((prev) => ({
+      ...prev,
+      overseerMessageCount: 0,
+      lastOverseerReset: today,
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, time.toDateString()]);
+
 
   // Overseer send
   const sendMsg = async (msgOverride) => {
     const msg = (typeof msgOverride === "string" ? msgOverride : state.overseerInput).trim();
     if (!msg || overseerLoading) return;
+
+    // Check if user has reached daily limit
+    if (state.overseerMessageCount >= 3) {
+      // Don't send message if limit reached
+      return;
+    }
+
     const userMsg = { role: "user", content: msg };
     const newLog = [...state.overseerLog, { role: "user", text: msg }];
     setState((prev) => ({
       ...prev,
       overseerLog: newLog,
       overseerInput: msgOverride ? prev.overseerInput : "",
+      overseerMessageCount: prev.overseerMessageCount + 1, // Increment message count
     }));
     setOverseerLoading(true);
 
@@ -238,29 +289,53 @@ export default function LifeOS() {
     setOverseerLoading(false);
   };
 
-  const pageAccent = getPageAccent(tab);
-  const pageTint = getPageTint(tab);
+  const pageAccent = getPageAccent(tab, state.theme || "dark");
+  const pageTint = getPageTint(tab, state.theme || "dark");
+
+  // Brand-primary hex literal for the current theme — used in places where
+  // a CSS var won't work (e.g. CircleMenu interpolates color into a hex+alpha
+  // box-shadow string like `${color}80`).
+  const accentMainHex = (state.theme || "dark") === "light" ? "#F97316" : "#7C6DFA";
+  const pageAccents = {
+    main: accentMainHex,
+    finances: "#34D399",
+    health: "#F87171",
+    gym: "#FBBF24",
+    brand: "#22D3EE",
+    settings: "#94A3B8",
+  };
 
   if (!isLoaded) {
     return (
       <div
         style={{
           minHeight: "100vh",
-          background: "#080810",
+          background: "var(--bg)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          color: "#F8FAFF",
+          color: "var(--text)",
           fontFamily: "var(--font-sans)",
         }}
       >
-        <motion.div
-          animate={{ opacity: [0.4, 1, 0.4] }}
-          transition={{ duration: 1.5, repeat: Infinity }}
-          style={{ fontSize: "16px", fontWeight: 600, letterSpacing: "0.1em" }}
-        >
-          LIFEOS
-        </motion.div>
+        {isMobile ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8 }}
+            style={{ fontSize: "16px", fontWeight: 600, letterSpacing: "0.1em" }}
+          >
+            LIFEOS
+          </motion.div>
+        ) : (
+          <motion.div
+            animate={{ opacity: [0.4, 1, 0.4] }}
+            transition={{ duration: 1.5, repeat: Infinity }}
+            style={{ fontSize: "16px", fontWeight: 600, letterSpacing: "0.1em" }}
+          >
+            LIFEOS
+          </motion.div>
+        )}
       </div>
     );
   }
@@ -269,15 +344,15 @@ export default function LifeOS() {
     <div
       style={{
         minHeight: "100vh",
-        background: "#080810",
+        background: "var(--bg)",
         fontFamily: "var(--font-sans)",
-        color: "#F8FAFF",
+        color: "var(--text)",
         paddingBottom: "100px",
         position: "relative",
         overflow: "hidden",
       }}
     >
-      <AnimatedBackground pageAccent={pageAccent} />
+      <AnimatedBackground pageAccent={pageAccent} isMobile={isMobile} />
 
       {/* Top Bar - Floating Glass Pill */}
       <div
@@ -294,12 +369,12 @@ export default function LifeOS() {
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           style={{
-            background: "rgba(255, 255, 255, 0.08)",
+            background: "var(--card-mid)",
             backdropFilter: "blur(20px)",
             WebkitBackdropFilter: "blur(20px)",
             borderRadius: "24px",
             padding: "8px 16px",
-            border: `1px solid rgba(255, 255, 255, 0.1)`,
+            border: `1px solid var(--border)`,
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
@@ -310,12 +385,12 @@ export default function LifeOS() {
             <span style={{
               fontFamily: "var(--font-mono)",
               fontSize: "10px",
-              color: "rgba(248, 250, 255, 0.4)",
+              color: "var(--text-faint)",
               letterSpacing: "0.05em"
             }}>
               {dayStr().toUpperCase()}
             </span>
-            <div style={{ width: "1px", height: "12px", background: "rgba(255, 255, 255, 0.15)" }} />
+            <div style={{ width: "1px", height: "12px", background: "var(--border-high)" }} />
             <span className="pill-workout" style={{
               fontFamily: "var(--font-mono)",
               fontSize: "10px",
@@ -326,9 +401,9 @@ export default function LifeOS() {
               {state.gymSplit?.[getTodayDay()] || "REST"}
             </span>
           </div>
-          
+
           <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
-            <span style={{ fontSize: "12px", fontWeight: 600, color: "#F8FAFF", opacity: 0.8, fontFamily: "var(--font-mono)" }}>
+            <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text)", opacity: 0.8, fontFamily: "var(--font-mono)" }}>
               {timeStr()}
             </span>
           </div>
@@ -339,13 +414,13 @@ export default function LifeOS() {
       <div className="health-strip" style={{ paddingTop: "24px", paddingBottom: "16px" }}>
       <div style={{ padding: "0 20px", display: "flex", gap: "12px", alignItems: "center", overflowX: "auto", scrollbarWidth: "none" }}>
         {[
-          { label: "DAY", val: `${pct}%`, color: "#7C6DFA" },
+          { label: "DAY", val: `${pct}%`, color: "var(--accent-main)" },
           { label: "SLEEP", val: `${state.whoop.sleep}%`, color: "#34D399" },
           { label: "STREAK", val: `${state.streak}D`, color: "#FBBF24" },
           { label: "GOALS", val: `${state.goals.filter(g => g.done).length}/${state.goals.length}`, color: "#22D3EE" },
         ].map(({ label, val, color }) => (
-          <div key={label} style={{ display: "flex", gap: "5px", alignItems: "center", background: "rgba(255, 255, 255, 0.05)", padding: "4px 10px", borderRadius: "20px", border: "1px solid rgba(255, 255, 255, 0.1)" }}>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "rgba(248, 250, 255, 0.4)", letterSpacing: "0.05em" }}>{label}</span>
+          <div key={label} style={{ display: "flex", gap: "5px", alignItems: "center", background: "var(--card)", padding: "4px 10px", borderRadius: "20px", border: "1px solid var(--border)" }}>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--text-faint)", letterSpacing: "0.05em" }}>{label}</span>
             <span style={{ fontSize: "11px", fontWeight: 700, color }}>{val}</span>
           </div>
         ))}
@@ -396,11 +471,72 @@ export default function LifeOS() {
           { id: "health", label: "Sleep", icon: <ZzzIcon />, color: "#F87171", labelAbove: true, labelLeftSide: true },
           { id: "finances", label: "Finances", icon: <FinIcon />, color: "#34D399", labelAbove: true, labelLeftSide: true },
           { id: "brand", label: "Brand", icon: <BrandIcon />, color: "#22D3EE", hidden: true },
-          { id: "main", label: "Home", icon: <HomeIcon />, color: "#7C6DFA", labelAbove: true },
+          { id: "main", label: "Home", icon: <HomeIcon />, color: pageAccents.main, labelAbove: true },
           { id: "gym", label: "Gym", icon: <GymIcon />, color: "#FBBF24", labelAbove: true },
           { id: "settings", label: "Settings", icon: <SettingsIcon />, color: "#94A3B8", labelAbove: true },
         ]}
       />
+    </div>
+  );
+}
+
+// Two-card theme picker. Each card uses its own theme's accent + bg as a
+// preview swatch so the user sees exactly what they're switching to.
+function AppearanceCard({ theme, onChange }) {
+  const options = [
+    { id: "dark",  label: "Dark",  accent: "#7C6DFA", bg: "#080810", text: "#F8FAFF" },
+    { id: "light", label: "Light", accent: "#F97316", bg: "#FAFAF7", text: "#1A1A1F" },
+  ];
+  return (
+    <div
+      style={{
+        background: "var(--card)",
+        backdropFilter: "blur(20px)",
+        borderRadius: "24px",
+        padding: "20px",
+        marginBottom: "16px",
+        border: "1px solid var(--border)",
+      }}
+    >
+      <div style={{ fontSize: "11px", fontWeight: 700, marginBottom: "16px", color: "var(--text-faint)", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
+        APPEARANCE
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+        {options.map((opt) => {
+          const selected = theme === opt.id;
+          return (
+            <button
+              key={opt.id}
+              onClick={() => onChange(opt.id)}
+              style={{
+                background: opt.bg,
+                color: opt.text,
+                border: `2px solid ${selected ? opt.accent : "var(--border)"}`,
+                borderRadius: "16px",
+                padding: "14px",
+                cursor: "pointer",
+                textAlign: "left",
+                boxShadow: selected ? `0 0 18px ${opt.accent}55` : "none",
+                transition: "border-color 0.2s, box-shadow 0.2s",
+                fontFamily: "inherit",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                <span style={{ width: "12px", height: "12px", borderRadius: "50%", background: opt.accent, boxShadow: `0 0 8px ${opt.accent}aa` }} />
+                <span style={{ fontWeight: 700, fontSize: "14px" }}>{opt.label}</span>
+                {selected && (
+                  <span style={{ marginLeft: "auto", fontSize: "10px", fontFamily: "var(--font-mono)", color: opt.accent, letterSpacing: "0.1em" }}>
+                    ACTIVE
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: "11px", opacity: 0.65 }}>
+                {opt.id === "dark" ? "Deep space + indigo glow" : "Soft white + vibrant orange"}
+              </div>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -414,23 +550,28 @@ function SettingsPage({ state, setState, resetState }) {
         Settings
       </div>
 
+      {/* Appearance — theme switcher */}
+      <AppearanceCard
+        theme={state.theme || "dark"}
+        onChange={(t) => setState((prev) => ({ ...prev, theme: t }))}
+      />
 
       {/* User Info */}
       <div
         style={{
-          background: "rgba(255, 255, 255, 0.05)",
+          background: "var(--card)",
           backdropFilter: "blur(20px)",
           borderRadius: "24px",
           padding: "20px",
           marginBottom: "16px",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
+          border: "1px solid var(--border)",
         }}
       >
-        <div style={{ fontSize: "11px", fontWeight: 700, marginBottom: "16px", color: "rgba(248, 250, 255, 0.4)", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
+        <div style={{ fontSize: "11px", fontWeight: 700, marginBottom: "16px", color: "var(--text-faint)", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
           PROFILE
         </div>
         <div>
-          <label style={{ fontSize: "10px", color: "rgba(248, 250, 255, 0.4)", display: "block", marginBottom: "6px", fontFamily: "var(--font-mono)" }}>
+          <label style={{ fontSize: "10px", color: "var(--text-faint)", display: "block", marginBottom: "6px", fontFamily: "var(--font-mono)" }}>
             YOUR NAME
           </label>
           <input
@@ -440,11 +581,11 @@ function SettingsPage({ state, setState, resetState }) {
             placeholder="Your name"
             style={{
               width: "100%",
-              background: "rgba(255, 255, 255, 0.05)",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
+              background: "var(--input)",
+              border: "1px solid var(--border)",
               borderRadius: "14px",
               padding: "14px",
-              color: "#F8FAFF",
+              color: "var(--text)",
               fontSize: "14px",
               fontFamily: "var(--font-sans)",
               outline: "none",
@@ -456,15 +597,15 @@ function SettingsPage({ state, setState, resetState }) {
       {/* Schedule
       <div
         style={{
-          background: "rgba(255, 255, 255, 0.05)",
+          background: "var(--card)",
           backdropFilter: "blur(20px)",
           borderRadius: "24px",
           padding: "20px",
           marginBottom: "16px",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
+          border: "1px solid var(--border)",
         }}
       >
-        <div style={{ fontSize: "11px", fontWeight: 700, marginBottom: "16px", color: "rgba(248, 250, 255, 0.4)", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
+        <div style={{ fontSize: "11px", fontWeight: 700, marginBottom: "16px", color: "var(--text-faint)", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
           SCHEDULE
         </div>
         <div style={{ display: "flex", gap: "12px" }}>
@@ -511,20 +652,20 @@ function SettingsPage({ state, setState, resetState }) {
       {/* Skipped Gym History */}
       <div
         style={{
-          background: "rgba(255, 255, 255, 0.05)",
+          background: "var(--card)",
           backdropFilter: "blur(20px)",
           borderRadius: "24px",
           padding: "20px",
           marginBottom: "16px",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
+          border: "1px solid var(--border)",
         }}
       >
-        <div style={{ fontSize: "11px", fontWeight: 700, marginBottom: "16px", color: "rgba(248, 250, 255, 0.4)", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
+        <div style={{ fontSize: "11px", fontWeight: 700, marginBottom: "16px", color: "var(--text-faint)", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
           REASONS WHY I SKIPPED THE GYM
         </div>
 
         {(!state.gymSkips || state.gymSkips.length === 0) ? (
-          <div style={{ fontSize: "13px", color: "rgba(248, 250, 255, 0.4)", textAlign: "center", padding: "20px 0" }}>
+          <div style={{ fontSize: "13px", color: "var(--text-faint)", textAlign: "center", padding: "20px 0" }}>
             No gym skips logged. Stay consistent.
           </div>
         ) : (
@@ -542,7 +683,7 @@ function SettingsPage({ state, setState, resetState }) {
                   </div>
                   <div style={{ fontSize: "9px", color: "#F87171", fontFamily: "var(--font-mono)" }}>{item.date}</div>
                 </div>
-                <div style={{ fontSize: "13px", color: "rgba(248, 250, 255, 0.65)", fontStyle: "italic", lineHeight: 1.4 }}>
+                <div style={{ fontSize: "13px", color: "var(--text-muted)", fontStyle: "italic", lineHeight: 1.4 }}>
                   "{item.reason}"
                 </div>
               </div>
@@ -554,20 +695,20 @@ function SettingsPage({ state, setState, resetState }) {
       {/* Missed Goals History */}
       <div
         style={{
-          background: "rgba(255, 255, 255, 0.05)",
+          background: "var(--card)",
           backdropFilter: "blur(20px)",
           borderRadius: "24px",
           padding: "20px",
           marginBottom: "16px",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
+          border: "1px solid var(--border)",
         }}
       >
-        <div style={{ fontSize: "11px", fontWeight: 700, marginBottom: "16px", color: "rgba(248, 250, 255, 0.4)", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
+        <div style={{ fontSize: "11px", fontWeight: 700, marginBottom: "16px", color: "var(--text-faint)", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
           SKIPPED / MISSED GOALS
         </div>
         
         {(!state.missedGoalsHistory || state.missedGoalsHistory.length === 0) ? (
-          <div style={{ fontSize: "13px", color: "rgba(248, 250, 255, 0.4)", textAlign: "center", padding: "20px 0" }}>
+          <div style={{ fontSize: "13px", color: "var(--text-faint)", textAlign: "center", padding: "20px 0" }}>
             No missed goals yet. Keep it up!
           </div>
         ) : (
@@ -580,10 +721,10 @@ function SettingsPage({ state, setState, resetState }) {
                 padding: "14px",
               }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "6px" }}>
-                  <div style={{ fontSize: "14px", fontWeight: 700, color: "#F8FAFF" }}>{item.text}</div>
+                  <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--text)" }}>{item.text}</div>
                   <div style={{ fontSize: "9px", color: "#F87171", fontFamily: "var(--font-mono)" }}>{item.date}</div>
                 </div>
-                <div style={{ fontSize: "12px", color: "rgba(248, 250, 255, 0.4)", fontStyle: "italic", lineHeight: 1.4 }}>
+                <div style={{ fontSize: "12px", color: "var(--text-faint)", fontStyle: "italic", lineHeight: 1.4 }}>
                   "{item.reason}"
                 </div>
               </div>
@@ -595,29 +736,29 @@ function SettingsPage({ state, setState, resetState }) {
       {/* About & How to Use */}
       <div
         style={{
-          background: "rgba(255, 255, 255, 0.05)",
+          background: "var(--card)",
           backdropFilter: "blur(20px)",
           borderRadius: "24px",
           padding: "20px",
           marginBottom: "16px",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
+          border: "1px solid var(--border)",
         }}
       >
-        <div style={{ fontSize: "11px", fontWeight: 700, marginBottom: "16px", color: "rgba(248, 250, 255, 0.4)", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
+        <div style={{ fontSize: "11px", fontWeight: 700, marginBottom: "16px", color: "var(--text-faint)", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
           ABOUT & HOW TO USE
         </div>
 
-        <div style={{ fontSize: "14px", fontWeight: 700, color: "#F8FAFF", marginBottom: "8px" }}>
+        <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--text)", marginBottom: "8px" }}>
           Welcome to LifeOS
         </div>
-        <div style={{ fontSize: "13px", color: "rgba(248, 250, 255, 0.7)", lineHeight: 1.55, marginBottom: "20px" }}>
+        <div style={{ fontSize: "13px", color: "var(--text-muted)", lineHeight: 1.55, marginBottom: "20px" }}>
           LifeOS is your personal accountability dashboard. Track your goals, sleep, finances, and gym — all in one place. The Overseer keeps you honest, calls out the slips, and rewards the wins.
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           {[
             {
-              accent: "#7C6DFA",
+              accent: accentMainHex,
               label: "HOME",
               title: "Daily flow + Overseer",
               body: "See your day at a glance. Check off tasks, hit your habits, and chat with the Overseer — a brutally honest AI coach that knows your full context.",
@@ -641,7 +782,7 @@ function SettingsPage({ state, setState, resetState }) {
               body: "Log sessions. If you skip, you have to write down why. Those excuses show up here in Settings so you can see your patterns.",
             },
             {
-              accent: "rgba(248, 250, 255, 0.6)",
+              accent: "var(--text-muted)",
               label: "SETTINGS",
               title: "Name, History, Reset",
               body: "Edit your name, review every skipped gym session and missed goal, and reset everything from the Danger Zone if you need a fresh start.",
@@ -650,36 +791,52 @@ function SettingsPage({ state, setState, resetState }) {
             <div
               key={item.label}
               style={{
-                background: "rgba(255, 255, 255, 0.03)",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
+                background: "var(--card)",
+                border: "1px solid var(--border)",
                 borderRadius: "16px",
                 padding: "14px",
               }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                <div style={{ fontSize: "14px", fontWeight: 700, color: "#F8FAFF" }}>{item.title}</div>
+                <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--text)" }}>{item.title}</div>
                 <div style={{ fontSize: "10px", fontWeight: 700, color: item.accent, fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
                   {item.label}
                 </div>
               </div>
-              <div style={{ fontSize: "12px", color: "rgba(248, 250, 255, 0.6)", lineHeight: 1.5 }}>
+              <div style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.5 }}>
                 {item.body}
               </div>
             </div>
           ))}
         </div>
 
+        {/* Compute RGB from accentMainHex for background */}
+        {(() => {
+          const hex = accentMainHex;
+          const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+          hex = hex.replace(shorthandRegex, (m, r, g, b) => {
+            return r + r + g + g + b + b;
+          });
+          const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+          const rgb = result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+          } : null;
+          return rgb;
+        })()}
+
         <div style={{
           marginTop: "20px",
           padding: "14px",
-          background: "rgba(124, 109, 250, 0.08)",
-          border: "1px solid rgba(124, 109, 250, 0.2)",
+          background: `rgba(${rgb ? `${rgb.r}, ${rgb.g}, ${rgb.b}` : "124, 109, 250"}, 0.08)`,
+          border: `1px solid rgba(${rgb ? `${rgb.r}, ${rgb.g}, ${rgb.b}` : "124, 109, 250"}, 0.2)`,
           borderRadius: "16px",
         }}>
-          <div style={{ fontSize: "10px", fontWeight: 700, color: "#7C6DFA", fontFamily: "var(--font-mono)", letterSpacing: "0.1em", marginBottom: "6px" }}>
+          <div style={{ fontSize: "10px", fontWeight: 700, color: accentMainHex, fontFamily: "var(--font-mono)", letterSpacing: "0.1em", marginBottom: "6px" }}>
             TIP
           </div>
-          <div style={{ fontSize: "12px", color: "rgba(248, 250, 255, 0.7)", lineHeight: 1.5 }}>
+          <div style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.5 }}>
             Use the circle menu at the bottom to switch pages. Everything you log is saved locally — no account, no cloud, just you and your data.
           </div>
         </div>
@@ -716,7 +873,7 @@ function SettingsPage({ state, setState, resetState }) {
           </button>
         ) : (
           <div>
-            <div style={{ fontSize: "13px", color: "rgba(248, 250, 255, 0.4)", marginBottom: "16px" }}>
+            <div style={{ fontSize: "13px", color: "var(--text-faint)", marginBottom: "16px" }}>
               Permanent deletion. This cannot be undone.
             </div>
             <div style={{ display: "flex", gap: "10px" }}>
@@ -728,7 +885,7 @@ function SettingsPage({ state, setState, resetState }) {
               </button>
               <button
                 onClick={() => setShowResetConfirm(false)}
-                style={{ flex: 1, padding: "14px", borderRadius: "14px", border: "1px solid rgba(255, 255, 255, 0.1)", background: "transparent", color: "#F8FAFF", fontWeight: 600, cursor: "pointer" }}
+                style={{ flex: 1, padding: "14px", borderRadius: "14px", border: "1px solid var(--border)", background: "transparent", color: "var(--text)", fontWeight: 600, cursor: "pointer" }}
               >
                 Cancel
               </button>
@@ -737,7 +894,7 @@ function SettingsPage({ state, setState, resetState }) {
         )}
       </div>
 
-      <div style={{ textAlign: "center", fontSize: "11px", color: "rgba(248, 250, 255, 0.4)", marginTop: "24px", fontFamily: "var(--font-mono)" }}>
+      <div style={{ textAlign: "center", fontSize: "11px", color: "var(--text-faint)", marginTop: "24px", fontFamily: "var(--font-mono)" }}>
         LIFEOS V3.0.0
       </div>
     </div>

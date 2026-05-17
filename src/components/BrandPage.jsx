@@ -52,14 +52,14 @@ export function BrandPage({ state, setState }) {
         <SectionLabel accent="#22D3EE">PERSONAL BRAND</SectionLabel>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "20px" }}>
           <div>
-            <div style={{ fontSize: "10px", color: "rgba(248, 250, 255, 0.45)", fontFamily: "var(--font-mono)", marginBottom: "4px" }}>TOTAL REACH</div>
-            <div style={{ fontSize: "42px", fontWeight: 900, color: "#F8FAFF", letterSpacing: "-0.04em", lineHeight: 1 }}>
+            <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", marginBottom: "4px" }}>TOTAL REACH</div>
+            <div style={{ fontSize: "42px", fontWeight: 900, color: "var(--text)", letterSpacing: "-0.04em", lineHeight: 1 }}>
               {totalFollowers.toLocaleString()}
             </div>
           </div>
           <div style={{ textAlign: "right" }}>
             <div style={{ color: "#34D399", fontWeight: 800, fontSize: "16px" }}>+{totalGrowth.toLocaleString()}</div>
-            <div style={{ fontSize: "9px", color: "rgba(248, 250, 255, 0.45)", fontFamily: "var(--font-mono)" }}>30D GROWTH</div>
+            <div style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>30D GROWTH</div>
           </div>
         </div>
 
@@ -67,12 +67,12 @@ export function BrandPage({ state, setState }) {
           <MetricCard
             label="POSTS"
             value={state.brand?.posts || 0}
-            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+            style={{ background: "var(--card)", border: "1px solid var(--border)" }}
           />
           <MetricCard
             label="ENGAGEMENT"
             value={`${state.brand?.engagement || 0}%`}
-            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+            style={{ background: "var(--card)", border: "1px solid var(--border)" }}
           />
         </div>
       </GlassCard>
@@ -165,10 +165,10 @@ export function BrandPage({ state, setState }) {
 
       {/* Content Strategy */}
       <GlassCard style={{ marginTop: "24px" }}>
-        <SectionLabel accent="#7C6DFA">STRATEGY & REFLECTION</SectionLabel>
+        <SectionLabel accent="var(--accent-main)">STRATEGY & REFLECTION</SectionLabel>
         
         <div style={{ marginBottom: "20px" }}>
-          <label style={{ fontSize: "10px", color: "rgba(248, 250, 255, 0.4)", display: "block", marginBottom: "8px", fontFamily: "var(--font-mono)" }}>MISSION STATEMENT</label>
+          <label style={{ fontSize: "10px", color: "var(--text-faint)", display: "block", marginBottom: "8px", fontFamily: "var(--font-mono)" }}>MISSION STATEMENT</label>
           <Textarea
             value={state.brand?.mission || ""}
             onChange={(e) => setState(p => ({ ...p, brand: { ...p.brand, mission: e.target.value } }))}
@@ -179,7 +179,7 @@ export function BrandPage({ state, setState }) {
         </div>
 
         <div>
-          <label style={{ fontSize: "10px", color: "rgba(248, 250, 255, 0.4)", display: "block", marginBottom: "8px", fontFamily: "var(--font-mono)" }}>WEEKLY REFLECTION</label>
+          <label style={{ fontSize: "10px", color: "var(--text-faint)", display: "block", marginBottom: "8px", fontFamily: "var(--font-mono)" }}>WEEKLY REFLECTION</label>
           <Textarea
             value={state.brand?.reflection || ""}
             onChange={(e) => setState(p => ({ ...p, brand: { ...p.brand, reflection: e.target.value } }))}
@@ -187,7 +187,7 @@ export function BrandPage({ state, setState }) {
             rows={5}
             style={{ marginBottom: 0 }}
           />
-          <div style={{ textAlign: "right", marginTop: "8px", fontSize: "10px", color: "rgba(248, 250, 255, 0.3)", fontFamily: "var(--font-mono)" }}>
+          <div style={{ textAlign: "right", marginTop: "8px", fontSize: "10px", color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>
             {state.brand?.reflection?.length || 0} CHARS
           </div>
         </div>

@@ -50,7 +50,7 @@ export function HealthPage({ state, setState }) {
       : restPercent >= 55
       ? "#FBBF24"
       : restPercent >= 34
-      ? "#7C6DFA"
+      ? "var(--accent-main)"
       : "#F87171";
 
   // Data for the Peak Curve visualization (Current Week Mon-Sun)
@@ -64,7 +64,7 @@ export function HealthPage({ state, setState }) {
         
         <div style={{ position: "relative", width: "160px", height: "160px", margin: "20px auto" }}>
           <svg width="160" height="160" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="8" />
+            <circle cx="50" cy="50" r="45" fill="none" stroke="var(--card)" strokeWidth="8" />
             <motion.circle
               cx="50"
               cy="50"
@@ -82,7 +82,7 @@ export function HealthPage({ state, setState }) {
             />
           </svg>
           <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ fontSize: "42px", fontWeight: 900, color: "#F8FAFF", lineHeight: 1 }}>{restPercent}%</div>
+            <div style={{ fontSize: "42px", fontWeight: 900, color: "var(--text)", lineHeight: 1 }}>{restPercent}%</div>
             <div style={{ fontSize: "11px", fontWeight: 700, color: recoveryColor, marginTop: "4px", letterSpacing: "0.1em", fontFamily: "var(--font-mono)" }}>
               REST SCORE
             </div>
@@ -94,14 +94,14 @@ export function HealthPage({ state, setState }) {
             label="TODAY'S SLEEP SCORE"
             value={`${currentSleepScore}%`}
             color="#34D399"
-            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+            style={{ background: "var(--card)", border: "1px solid var(--border)" }}
           />
         </div>
       </GlassCard>
 
       {/* Sleep Entry Section */}
       <div style={{ marginTop: "24px" }}>
-        <SectionLabel accent="#7C6DFA">LOG PREVIOUS NIGHT'S SLEEP</SectionLabel>
+        <SectionLabel accent="var(--accent-main)">LOG PREVIOUS NIGHT'S SLEEP</SectionLabel>
         <GlassCard style={{ padding: "20px" }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
             <Input
@@ -120,7 +120,7 @@ export function HealthPage({ state, setState }) {
             />
           </div>
           
-          <div style={{ textAlign: "center", marginBottom: "16px", fontSize: "12px", color: "rgba(248, 250, 255, 0.4)", fontFamily: "var(--font-mono)" }}>
+          <div style={{ textAlign: "center", marginBottom: "16px", fontSize: "12px", color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>
             DURATION: <span style={{ color: "#34D399", fontWeight: 800 }}>{calculateSleepHours(bedtime, wakeTime)} HOURS</span>
           </div>
 
@@ -132,7 +132,7 @@ export function HealthPage({ state, setState }) {
 
       {/* Peak Curve Visualization */}
       <GlassCard style={{ marginTop: "24px", padding: "20px", marginBottom: "40px" }}>
-        <SectionLabel accent="#7C6DFA">WEEKLY PEAK CURVE</SectionLabel>
+        <SectionLabel accent="var(--accent-main)">WEEKLY PEAK CURVE</SectionLabel>
         <div style={{ height: "120px", width: "100%", marginTop: "20px", display: "flex", alignItems: "flex-end", gap: "8px" }}>
           {curvePoints.map((p, i) => {
             const dayLabels = ["M", "T", "W", "T", "F", "S", "S"];
@@ -149,13 +149,24 @@ export function HealthPage({ state, setState }) {
                     transition={{ duration: 1, delay: i * 0.1, ease: "easeOut" }}
                     style={{
                       width: "100%",
-                      background: p === 0 ? "rgba(255,255,255,0.02)" : `linear-gradient(to top, ${p > 80 ? "#34D399" : p > 50 ? "#7C6DFA" : "#F87171"}40, ${p > 80 ? "#34D399" : p > 50 ? "#7C6DFA" : "#F87171"}aa)`,
+                      background: p === 0
+                        ? "var(--card)"
+                        : (() => {
+                            // p > 80 → green, > 50 → accent (themed), else → red.
+                            // Gradient builds from a low-alpha base to a high-alpha cap.
+                            const isAccent = p > 50 && p <= 80;
+                            const lo = isAccent ? "rgba(var(--accent-main-rgb),0.25)" : `${p > 80 ? "#34D399" : "#F87171"}40`;
+                            const hi = isAccent ? "rgba(var(--accent-main-rgb),0.67)" : `${p > 80 ? "#34D399" : "#F87171"}aa`;
+                            return `linear-gradient(to top, ${lo}, ${hi})`;
+                          })(),
                       borderRadius: "6px 6px 2px 2px",
-                      border: p === 0 ? "1px dashed rgba(255,255,255,0.05)" : `1px solid ${p > 80 ? "#34D399" : p > 50 ? "#7C6DFA" : "#F87171"}80`,
+                      border: p === 0
+                        ? "1px dashed var(--border)"
+                        : `1px solid ${p > 80 ? "#34D39980" : p > 50 ? "rgba(var(--accent-main-rgb),0.5)" : "#F8717180"}`,
                     }}
                   />
                 </div>
-                <div style={{ fontSize: "9px", color: i === adjustedTodayIndex ? "#7C6DFA" : "rgba(248, 250, 255, 0.4)", fontFamily: "var(--font-mono)", fontWeight: i === adjustedTodayIndex ? 800 : 400 }}>
+                <div style={{ fontSize: "9px", color: i === adjustedTodayIndex ? "var(--accent-main)" : "var(--text-faint)", fontFamily: "var(--font-mono)", fontWeight: i === adjustedTodayIndex ? 800 : 400 }}>
                   {dayLabels[i]}
                 </div>
               </div>

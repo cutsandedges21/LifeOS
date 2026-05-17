@@ -2,10 +2,10 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 
 const G = {
-  bg:         "rgba(255, 255, 255, 0.05)",
-  bgMid:      "rgba(255, 255, 255, 0.08)",
-  border:     "rgba(255, 255, 255, 0.10)",
-  borderFocus:"rgba(124, 109, 250, 0.60)",
+  bg:         "var(--card)",
+  bgMid:      "var(--card-mid)",
+  border:     "var(--border)",
+  borderFocus:"rgba(var(--accent-main-rgb), 0.60)",
   blur:       "blur(24px) saturate(180%)",
   radius:     "20px",
   radiusSm:   "14px",
@@ -14,7 +14,7 @@ const G = {
 const spring = { type: "spring", stiffness: 420, damping: 32 };
 
 // ── SectionLabel (mono uppercase with accent bar) ─────────────────────
-export const SectionLabel = ({ children, icon, accent = "#7C6DFA" }) => (
+export const SectionLabel = ({ children, icon, accent = "var(--accent-main)" }) => (
   <div style={{
     display: "flex",
     alignItems: "center",
@@ -37,7 +37,7 @@ export const SectionLabel = ({ children, icon, accent = "#7C6DFA" }) => (
       fontFamily: "'DM Mono', monospace",
       fontSize: "10px",
       letterSpacing: "0.14em",
-      color: "rgba(248,250,255,0.45)",
+      color: "var(--text-muted)",
       textTransform: "uppercase",
     }}>
       {children}
@@ -66,7 +66,7 @@ export const Input = ({
       {label && (
         <div style={{
           fontSize: "10px",
-          color: focused ? "rgba(124,109,250,0.85)" : "rgba(248,250,255,0.4)",
+          color: focused ? "rgba(var(--accent-main-rgb),0.85)" : "var(--text-faint)",
           fontFamily: "'DM Mono', monospace",
           letterSpacing: "0.12em",
           marginBottom: "5px",
@@ -89,17 +89,17 @@ export const Input = ({
         onBlur={() => setFocused(false)}
         style={{
           width: "100%",
-          background: focused ? "rgba(124,109,250,0.08)" : G.bg,
+          background: focused ? "rgba(var(--accent-main-rgb),0.08)" : G.bg,
           border: `1px solid ${focused ? G.borderFocus : G.border}`,
           borderRadius: G.radiusXs,
           padding: "11px 14px",
-          color: "#F8FAFF",
+          color: "var(--text)",
           fontSize: "14px",
           fontFamily: "inherit",
           minHeight: "44px",
           transition: "border 0.2s, background 0.2s",
           outline: "none",
-          boxShadow: focused ? `0 0 0 3px rgba(124,109,250,0.12)` : "none",
+          boxShadow: focused ? `0 0 0 3px rgba(var(--accent-main-rgb),0.12)` : "none",
           boxSizing: "border-box",
           backdropFilter: G.blur,
           WebkitBackdropFilter: G.blur,
@@ -122,14 +122,14 @@ export const Button = ({
 }) => {
   const variants = {
     primary: {
-      background: "linear-gradient(135deg, #7C6DFA 0%, #5B4FD6 100%)",
+      background: "linear-gradient(135deg, var(--accent-main) 0%, rgba(var(--accent-main-rgb), 0.75) 100%)",
       color: "#fff",
-      border: "1px solid rgba(124,109,250,0.5)",
-      boxShadow: "0 4px 20px rgba(124,109,250,0.35), inset 0 1px 0 rgba(255,255,255,0.15)",
+      border: "1px solid rgba(var(--accent-main-rgb),0.5)",
+      boxShadow: "0 4px 20px rgba(var(--accent-main-rgb),0.35), inset 0 1px 0 rgba(255,255,255,0.15)",
     },
     secondary: {
       background: G.bg,
-      color: "#F8FAFF",
+      color: "var(--text)",
       border: `1px solid ${G.border}`,
       boxShadow: "none",
     },
@@ -141,8 +141,8 @@ export const Button = ({
     },
     ghost: {
       background: "transparent",
-      color: "rgba(248,250,255,0.55)",
-      border: "1px solid rgba(255,255,255,0.07)",
+      color: "var(--text-muted)",
+      border: "1px solid var(--border)",
       boxShadow: "none",
     },
     success: {
@@ -193,7 +193,7 @@ export const Button = ({
 export const Select = ({ label, value, onChange, options, placeholder = "Select...", style = {}, ...props }) => (
   <div style={{ marginBottom: "12px" }}>
     {label && (
-      <div style={{ fontSize: "10px", color: "rgba(248,250,255,0.4)", fontFamily: "'DM Mono', monospace", letterSpacing: "0.12em", marginBottom: "5px" }}>
+      <div style={{ fontSize: "10px", color: "var(--text-faint)", fontFamily: "'DM Mono', monospace", letterSpacing: "0.12em", marginBottom: "5px" }}>
         {label.toUpperCase()}
       </div>
     )}
@@ -206,7 +206,7 @@ export const Select = ({ label, value, onChange, options, placeholder = "Select.
         border: `1px solid ${G.border}`,
         borderRadius: G.radiusXs,
         padding: "11px 14px",
-        color: "#F8FAFF",
+        color: "var(--text)",
         fontSize: "14px",
         fontFamily: "inherit",
         minHeight: "44px",
@@ -233,7 +233,7 @@ export const Textarea = ({ label, value, onChange, placeholder = "", rows = 4, s
   return (
     <div style={{ marginBottom: "12px" }}>
       {label && (
-        <div style={{ fontSize: "10px", color: focused ? "rgba(124,109,250,0.85)" : "rgba(248,250,255,0.4)", fontFamily: "'DM Mono', monospace", letterSpacing: "0.12em", marginBottom: "5px", transition: "color 0.2s" }}>
+        <div style={{ fontSize: "10px", color: focused ? "rgba(var(--accent-main-rgb),0.85)" : "var(--text-faint)", fontFamily: "'DM Mono', monospace", letterSpacing: "0.12em", marginBottom: "5px", transition: "color 0.2s" }}>
           {label.toUpperCase()}
         </div>
       )}
@@ -246,17 +246,17 @@ export const Textarea = ({ label, value, onChange, placeholder = "", rows = 4, s
         onBlur={() => setFocused(false)}
         style={{
           width: "100%",
-          background: focused ? "rgba(124,109,250,0.06)" : G.bg,
+          background: focused ? "rgba(var(--accent-main-rgb),0.06)" : G.bg,
           border: `1px solid ${focused ? G.borderFocus : G.border}`,
           borderRadius: G.radiusSm,
           padding: "12px 14px",
-          color: "#F8FAFF",
+          color: "var(--text)",
           fontSize: "14px",
           fontFamily: "inherit",
           resize: "vertical",
           minHeight: "90px",
           outline: "none",
-          boxShadow: focused ? "0 0 0 3px rgba(124,109,250,0.10)" : "none",
+          boxShadow: focused ? "0 0 0 3px rgba(var(--accent-main-rgb),0.10)" : "none",
           boxSizing: "border-box",
           transition: "border 0.2s, background 0.2s",
           backdropFilter: G.blur,
@@ -272,7 +272,7 @@ export const Textarea = ({ label, value, onChange, placeholder = "", rows = 4, s
 // ── Toggle ────────────────────────────────────────────────────────────
 export const Toggle = ({ label, checked, onChange, style = {}, ...props }) => (
   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px", ...style }} {...props}>
-    <span style={{ fontSize: "14px", color: "rgba(248,250,255,0.75)" }}>{label}</span>
+    <span style={{ fontSize: "14px", color: "var(--text)" }}>{label}</span>
     <motion.button
       onClick={() => onChange(!checked)}
       whileTap={{ scale: 0.94 }}
@@ -280,12 +280,12 @@ export const Toggle = ({ label, checked, onChange, style = {}, ...props }) => (
         width: "50px",
         height: "28px",
         borderRadius: "14px",
-        background: checked ? "linear-gradient(135deg, #7C6DFA, #5B4FD6)" : "rgba(255,255,255,0.10)",
-        border: `1px solid ${checked ? "rgba(124,109,250,0.5)" : G.border}`,
+        background: checked ? "linear-gradient(135deg, var(--accent-main), rgba(var(--accent-main-rgb), 0.75))" : "var(--border)",
+        border: `1px solid ${checked ? "rgba(var(--accent-main-rgb),0.5)" : G.border}`,
         cursor: "pointer",
         position: "relative",
         transition: "background 0.25s, border 0.25s",
-        boxShadow: checked ? "0 0 14px rgba(124,109,250,0.35)" : "none",
+        boxShadow: checked ? "0 0 14px rgba(var(--accent-main-rgb),0.35)" : "none",
         flexShrink: 0,
       }}
     >
@@ -307,7 +307,7 @@ export const Toggle = ({ label, checked, onChange, style = {}, ...props }) => (
 );
 
 // ── Chip ──────────────────────────────────────────────────────────────
-export const Chip = ({ children, color = "#7C6DFA", style = {}, onClick, ...props }) => (
+export const Chip = ({ children, color = "var(--accent-main)", style = {}, onClick, ...props }) => (
   <motion.span
     initial={{ scale: 0.88, opacity: 0 }}
     animate={{ scale: 1, opacity: 1 }}
@@ -334,16 +334,16 @@ export const Chip = ({ children, color = "#7C6DFA", style = {}, onClick, ...prop
 );
 
 // ── StatCard ──────────────────────────────────────────────────────────
-export const StatCard = ({ label, value, subtext, color = "#F8FAFF", style = {}, ...props }) => (
+export const StatCard = ({ label, value, subtext, color = "var(--text)", style = {}, ...props }) => (
   <motion.div
     initial={{ opacity: 0, y: 8 }}
     animate={{ opacity: 1, y: 0 }}
     style={{ display: "flex", flexDirection: "column", gap: "3px", ...style }}
     {...props}
   >
-    <div style={{ fontSize: "10px", color: "rgba(248,250,255,0.4)", fontFamily: "'DM Mono', monospace", letterSpacing: "0.12em" }}>{label}</div>
+    <div style={{ fontSize: "10px", color: "var(--text-faint)", fontFamily: "'DM Mono', monospace", letterSpacing: "0.12em" }}>{label}</div>
     <div style={{ fontSize: "30px", fontWeight: 800, color, lineHeight: 1.1 }}>{value}</div>
-    {subtext && <div style={{ fontSize: "12px", color: "rgba(248,250,255,0.45)" }}>{subtext}</div>}
+    {subtext && <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>{subtext}</div>}
   </motion.div>
 );
 

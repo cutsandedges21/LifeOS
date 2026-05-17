@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 
 // Softly animated deep-space background with drifting aurora orbs
-export function AnimatedBackground({ pageAccent = "#7C6DFA" }) {
+export function AnimatedBackground({ pageAccent = "#7C6DFA", isMobile = false }) {
   const orbs = [
     {
       id: 1,
@@ -47,7 +47,7 @@ export function AnimatedBackground({ pageAccent = "#7C6DFA" }) {
         position: "fixed",
         inset: 0,
         zIndex: 0,
-        background: "#080810",
+        background: "var(--bg)",
         overflow: "hidden",
         pointerEvents: "none",
       }}
@@ -64,34 +64,42 @@ export function AnimatedBackground({ pageAccent = "#7C6DFA" }) {
         }}
       />
 
-      {/* Drifting aurora orbs */}
-      {orbs.map((orb) => (
-        <motion.div
-          key={orb.id}
-          animate={{
-            x: ["-4%", "4%", "-2%", "4%", "-4%"],
-            y: ["-4%", "2%", "5%", "-2%", "-4%"],
-            scale: [1, 1.08, 0.96, 1.04, 1],
-          }}
-          transition={{
-            duration: orb.duration,
-            delay: orb.delay,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-          style={{
-            position: "absolute",
-            left: orb.x,
-            top: orb.y,
-            width: orb.size,
-            height: orb.size,
-            borderRadius: "50%",
-            background: `radial-gradient(circle at center, ${orb.color} 0%, transparent 70%)`,
-            filter: "blur(60px)",
-            transform: "translate(-50%, -50%)",
-          }}
-        />
-      ))}
+      {/* Drifting aurora orbs — opacity reads from --orb-opacity so light
+          theme can soften them (orbs were designed for a dark bg). */}
+      {orbs.map((orb) => {
+        const orbStyle = {
+          position: "absolute",
+          left: orb.x,
+          top: orb.y,
+          width: orb.size,
+          height: orb.size,
+          borderRadius: "50%",
+          background: `radial-gradient(circle at center, ${orb.color} 0%, transparent 70%)`,
+          transform: "translate(-50%, -50%)",
+          opacity: isMobile ? "0.2" : "var(--orb-opacity)",
+          filter: isMobile ? "none" : "blur(60px)",
+        };
+        if (isMobile) {
+          return <motion.div key={orb.id} style={orbStyle} />;
+        }
+        return (
+          <motion.div
+            key={orb.id}
+            animate={{
+              x: ["-4%", "4%", "-2%", "4%", "-4%"],
+              y: ["-4%", "2%", "5%", "-2%", "-4%"],
+              scale: [1, 1.08, 0.96, 1.04, 1],
+            }}
+            transition={{
+              duration: orb.duration,
+              delay: orb.delay,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            style={orbStyle}
+          />
+        );
+      })}
 
       {/* Page accent glow — shifts per active tab */}
       <motion.div
@@ -111,7 +119,9 @@ export function AnimatedBackground({ pageAccent = "#7C6DFA" }) {
         }}
       />
 
-      {/* Top vignette */}
+      {/* Top vignette — uses --bg so the fade matches the active theme.
+          The "to transparent" end means the orbs still show through the
+          middle of the viewport; only the very top is darkened/lightened. */}
       <div
         style={{
           position: "absolute",
@@ -119,8 +129,8 @@ export function AnimatedBackground({ pageAccent = "#7C6DFA" }) {
           left: 0,
           right: 0,
           height: "200px",
-          background:
-            "linear-gradient(to bottom, rgba(8,8,16,0.8) 0%, transparent 100%)",
+          background: "linear-gradient(to bottom, var(--bg) 0%, transparent 100%)",
+          opacity: 0.85,
         }}
       />
 
@@ -132,8 +142,8 @@ export function AnimatedBackground({ pageAccent = "#7C6DFA" }) {
           left: 0,
           right: 0,
           height: "160px",
-          background:
-            "linear-gradient(to top, rgba(8,8,16,0.9) 0%, transparent 100%)",
+          background: "linear-gradient(to top, var(--bg) 0%, transparent 100%)",
+          opacity: 0.9,
         }}
       />
     </div>

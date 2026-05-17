@@ -16,11 +16,13 @@ const CONSTANTS = {
 const SMOOTH_EASE = [0.32, 0.72, 0, 1];
 // Slow start, accelerating finish — items feel like they "fall" into the trigger
 const FALL_EASE = [0.55, 0.06, 0.78, 0.32];
-// Vertical drop distance: items collapse to the trigger center, which sits at
-// the bottom edge of the items wrapper (height = containerSize, center at half)
-const FALL_Y = CONSTANTS.containerSize / 2;
+// Vertical drop distance: items collapse into the trigger. Items origin is at
+// top: 80% of the wrapper, so the trigger center sits 20% of containerSize below.
+const FALL_Y = CONSTANTS.containerSize * 0.2;
 
-const MUTED = "rgba(255, 255, 255, 0.08)";
+// The dimmed item bg picks up the theme's surface tint via CSS var, so
+// inactive menu items sit nicely on both dark and light backdrops.
+const MUTED = "var(--card-mid)";
 
 // Half-circle arc spanning from left (-π) to right (0), peaking straight up
 const pointOnCircle = (i, n, r) => {
@@ -93,10 +95,14 @@ function MenuItem({ item, index, totalItems, isOpen, isActive, onSelect }) {
           height: CONSTANTS.itemSize,
           borderRadius: "50%",
           background: isActive ? item.color : MUTED,
-          backdropFilter: "blur(20px) saturate(180%)",
-          WebkitBackdropFilter: "blur(20px) saturate(180%)",
-          color: isActive ? "#F8FAFF" : "rgba(248, 250, 255, 0.7)",
-          border: `1px solid ${isActive ? item.color : "rgba(255,255,255,0.10)"}`,
+          ...(IS_MOBILE
+            ? {}
+            : {
+                backdropFilter: "blur(20px) saturate(180%)",
+                WebkitBackdropFilter: "blur(20px) saturate(180%)",
+              }),
+          color: isActive ? "#F8FAFF" : "var(--text)",
+          border: `1px solid ${isActive ? item.color : "var(--border)"}`,
           boxShadow: isActive
             ? `0 0 24px ${item.color}80, 0 6px 18px rgba(0,0,0,0.4)`
             : "0 6px 18px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08)",
@@ -129,7 +135,7 @@ function MenuItem({ item, index, totalItems, isOpen, isActive, onSelect }) {
                 transform: "translateX(-50%)",
                 fontSize: "9px",
                 fontFamily: "var(--font-mono)",
-                color: "rgba(248, 250, 255, 0.85)",
+                color: "#F8FAFF",
                 letterSpacing: "0.14em",
                 textTransform: "uppercase",
                 whiteSpace: "nowrap",
@@ -284,8 +290,12 @@ export function CircleMenu({ items, activeId, onSelect }) {
                 position: "fixed",
                 inset: 0,
                 background: "rgba(0,0,0,0.35)",
-                backdropFilter: "blur(4px)",
-                WebkitBackdropFilter: "blur(4px)",
+                ...(IS_MOBILE
+                  ? {}
+                  : {
+                      backdropFilter: "blur(4px)",
+                      WebkitBackdropFilter: "blur(4px)",
+                    }),
                 zIndex: -1,
                 pointerEvents: "auto",
               }}

@@ -59,7 +59,7 @@ export function FinancesPage({ state, setState }) {
   const [newBudget, setNewBudget] = useState({
     category: "Food",
     limit: 0,
-    color: "#7C6DFA",
+    color: "var(--accent-main)",
   });
 
   const [newGoal, setNewGoal] = useState({
@@ -121,7 +121,7 @@ export function FinancesPage({ state, setState }) {
         budgets: [...(prev.finances.budgets || []), { ...newBudget, limit: Number(newBudget.limit), id: Date.now() }],
       },
     }));
-    setNewBudget({ category: "Food", limit: 0, color: "#7C6DFA" });
+    setNewBudget({ category: "Food", limit: 0, color: "var(--accent-main)" });
     setShowAddBudget(false);
   };
 
@@ -242,11 +242,11 @@ export function FinancesPage({ state, setState }) {
     <div style={{ padding: "0 clamp(14px, 4.5vw, 20px)" }}>
       {/* ── ALL-TIME STATS ────────────────────────────────────────── */}
       <GlassCard style={{ padding: "20px 20px 18px", marginBottom: "16px" }}>
-        <SectionLabel accent="#7C6DFA">ALL TIME</SectionLabel>
+        <SectionLabel accent="var(--accent-main)">ALL TIME</SectionLabel>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0" }}>
 
           <div style={{ textAlign: "center", padding: "4px 0" }}>
-            <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "rgba(248,250,255,0.4)", letterSpacing: "0.12em", marginBottom: "6px" }}>INCOME</div>
+            <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "var(--text-faint)", letterSpacing: "0.12em", marginBottom: "6px" }}>INCOME</div>
             <motion.div
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
@@ -257,8 +257,8 @@ export function FinancesPage({ state, setState }) {
             </motion.div>
           </div>
 
-          <div style={{ textAlign: "center", padding: "4px 0", borderLeft: "1px solid rgba(255,255,255,0.07)", borderRight: "1px solid rgba(255,255,255,0.07)" }}>
-            <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "rgba(248,250,255,0.4)", letterSpacing: "0.12em", marginBottom: "6px" }}>EXPENSES</div>
+          <div style={{ textAlign: "center", padding: "4px 0", borderLeft: "1px solid var(--border)", borderRight: "1px solid var(--border)" }}>
+            <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "var(--text-faint)", letterSpacing: "0.12em", marginBottom: "6px" }}>EXPENSES</div>
             <motion.div
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
@@ -270,12 +270,12 @@ export function FinancesPage({ state, setState }) {
           </div>
 
           <div style={{ textAlign: "center", padding: "4px 0" }}>
-            <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "rgba(248,250,255,0.4)", letterSpacing: "0.12em", marginBottom: "6px" }}>NET</div>
+            <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "var(--text-faint)", letterSpacing: "0.12em", marginBottom: "6px" }}>NET</div>
             <motion.div
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.16 }}
-              style={{ fontSize: "clamp(15px, 4vw, 22px)", fontWeight: 900, color: allTimeNet >= 0 ? "#7C6DFA" : "#F87171", letterSpacing: "-0.02em", lineHeight: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+              style={{ fontSize: "clamp(15px, 4vw, 22px)", fontWeight: 900, color: allTimeNet >= 0 ? "var(--accent-main)" : "#F87171", letterSpacing: "-0.02em", lineHeight: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
             >
               {allTimeNet >= 0 ? "+" : ""}{fmt$(allTimeNet)}
             </motion.div>
@@ -290,16 +290,16 @@ export function FinancesPage({ state, setState }) {
 
         <div className="stat-row" style={{ display: "flex", gap: "12px", marginBottom: "20px" }}>
           <div style={{ flex: 1, background: "rgba(52, 211, 153, 0.08)", padding: "12px", borderRadius: "14px", border: "1px solid rgba(52, 211, 153, 0.18)", minWidth: 0 }}>
-            <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "rgba(248,250,255,0.45)", letterSpacing: "0.12em", marginBottom: "4px" }}>IN</div>
+            <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "var(--text-faint)", letterSpacing: "0.12em", marginBottom: "4px" }}>IN</div>
             <div className="stat-val" style={{ color: "#34D399", fontWeight: 800, fontSize: "17px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fmt$(monthIncome)}</div>
           </div>
           <div style={{ flex: 1, background: "rgba(248, 113, 113, 0.08)", padding: "12px", borderRadius: "14px", border: "1px solid rgba(248, 113, 113, 0.18)", minWidth: 0 }}>
-            <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "rgba(248,250,255,0.45)", letterSpacing: "0.12em", marginBottom: "4px" }}>OUT</div>
+            <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "var(--text-faint)", letterSpacing: "0.12em", marginBottom: "4px" }}>OUT</div>
             <div className="stat-val" style={{ color: "#F87171", fontWeight: 800, fontSize: "17px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fmt$(monthExpense)}</div>
           </div>
-          <div style={{ flex: 1, background: monthNet >= 0 ? "rgba(124,109,250,0.10)" : "rgba(248, 113, 113, 0.08)", padding: "12px", borderRadius: "14px", border: `1px solid ${monthNet >= 0 ? "rgba(124,109,250,0.25)" : "rgba(248,113,113,0.18)"}`, minWidth: 0 }}>
-            <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "rgba(248,250,255,0.45)", letterSpacing: "0.12em", marginBottom: "4px" }}>NET</div>
-            <div className="stat-val" style={{ color: monthNet >= 0 ? "#7C6DFA" : "#F87171", fontWeight: 800, fontSize: "17px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div style={{ flex: 1, background: monthNet >= 0 ? "rgba(var(--accent-main-rgb),0.10)" : "rgba(248, 113, 113, 0.08)", padding: "12px", borderRadius: "14px", border: `1px solid ${monthNet >= 0 ? "rgba(var(--accent-main-rgb),0.25)" : "rgba(248,113,113,0.18)"}`, minWidth: 0 }}>
+            <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "var(--text-faint)", letterSpacing: "0.12em", marginBottom: "4px" }}>NET</div>
+            <div className="stat-val" style={{ color: monthNet >= 0 ? "var(--accent-main)" : "#F87171", fontWeight: 800, fontSize: "17px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {monthNet >= 0 ? "+" : ""}{fmt$(monthNet)}
             </div>
           </div>
@@ -339,7 +339,7 @@ export function FinancesPage({ state, setState }) {
                     }}
                   />
                 </div>
-                <div className="chart-label" style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "rgba(248,250,255,0.45)", letterSpacing: "0.08em" }}>
+                <div className="chart-label" style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-faint)", letterSpacing: "0.08em" }}>
                   {m.label.toUpperCase()}
                 </div>
               </div>
@@ -350,11 +350,11 @@ export function FinancesPage({ state, setState }) {
         <div style={{ display: "flex", justifyContent: "center", gap: "18px", marginTop: "14px", fontSize: "11px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
             <div style={{ width: "10px", height: "10px", background: "#34D399", borderRadius: "3px" }} />
-            <span style={{ color: "rgba(248,250,255,0.6)" }}>Income</span>
+            <span style={{ color: "var(--text-muted)" }}>Income</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
             <div style={{ width: "10px", height: "10px", background: "#F87171", borderRadius: "3px" }} />
-            <span style={{ color: "rgba(248,250,255,0.6)" }}>Expense</span>
+            <span style={{ color: "var(--text-muted)" }}>Expense</span>
           </div>
         </div>
       </GlassCard>
@@ -377,7 +377,7 @@ export function FinancesPage({ state, setState }) {
             />
           ))}
           {(state.businesses || []).length === 0 && (
-            <div style={{ fontSize: "13px", color: "rgba(248, 250, 255, 0.35)", padding: "12px 4px" }}>
+            <div style={{ fontSize: "13px", color: "var(--text-faint)", padding: "12px 4px" }}>
               No active businesses yet.
             </div>
           )}
@@ -435,12 +435,12 @@ export function FinancesPage({ state, setState }) {
                 style={{ flex: 1, marginBottom: 0 }}
               />
               <div style={{ flex: 1 }}>
-                <label style={{ fontSize: "10px", color: "rgba(248, 250, 255, 0.4)", fontFamily: "var(--font-mono)", display: "block", marginBottom: "5px" }}>COLOR</label>
+                <label style={{ fontSize: "10px", color: "var(--text-faint)", fontFamily: "var(--font-mono)", display: "block", marginBottom: "5px" }}>COLOR</label>
                 <input
                   type="color"
                   value={newBusiness.color}
                   onChange={(e) => setNewBusiness({ ...newBusiness, color: e.target.value })}
-                  style={{ width: "100%", height: "44px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", padding: "4px", cursor: "pointer" }}
+                  style={{ width: "100%", height: "44px", borderRadius: "12px", border: "1px solid var(--border)", background: "var(--card)", padding: "4px", cursor: "pointer" }}
                 />
               </div>
             </div>
@@ -459,7 +459,7 @@ export function FinancesPage({ state, setState }) {
 
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           {savingsGoals.length === 0 && (
-            <div style={{ fontSize: "13px", color: "rgba(248, 250, 255, 0.35)", padding: "4px 0" }}>
+            <div style={{ fontSize: "13px", color: "var(--text-faint)", padding: "4px 0" }}>
               No savings goals yet. Set a target and start stacking.
             </div>
           )}
@@ -473,10 +473,10 @@ export function FinancesPage({ state, setState }) {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 style={{
-                  background: isComplete ? "rgba(52,211,153,0.07)" : "rgba(255,255,255,0.05)",
+                  background: isComplete ? "rgba(52,211,153,0.07)" : "var(--card)",
                   borderRadius: "14px",
                   padding: "14px",
-                  border: isComplete ? "1px solid rgba(52,211,153,0.35)" : "1px solid rgba(255,255,255,0.08)",
+                  border: isComplete ? "1px solid rgba(52,211,153,0.35)" : "1px solid var(--border)",
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
@@ -489,9 +489,9 @@ export function FinancesPage({ state, setState }) {
                         background: g.color,
                         boxShadow: `0 0 8px ${g.color}90`,
                       }} />
-                      <div style={{ color: "#F8FAFF", fontWeight: 700, fontSize: "15px" }}>{g.name}</div>
+                      <div style={{ color: "var(--text)", fontWeight: 700, fontSize: "15px" }}>{g.name}</div>
                     </div>
-                    <div style={{ fontSize: "11px", color: "rgba(248,250,255,0.4)", marginTop: "4px", marginLeft: "16px" }}>
+                    <div style={{ fontSize: "11px", color: "var(--text-faint)", marginTop: "4px", marginLeft: "16px" }}>
                       {fmt$(g.saved)} / {fmt$(g.target)} · {fmt$(remaining)} to go
                     </div>
                   </div>
@@ -520,14 +520,14 @@ export function FinancesPage({ state, setState }) {
                     )}
                     <button
                       onClick={() => removeGoal(g.id)}
-                      style={{ background: "none", border: "none", color: "rgba(248,250,255,0.3)", cursor: "pointer", fontSize: "16px" }}
+                      style={{ background: "none", border: "none", color: "var(--text-faint)", cursor: "pointer", fontSize: "16px" }}
                     >
                       ×
                     </button>
                   </div>
                 </div>
 
-                <div style={{ height: "6px", background: "rgba(255,255,255,0.08)", borderRadius: "3px", overflow: "hidden", marginBottom: "10px" }}>
+                <div style={{ height: "6px", background: "var(--card-mid)", borderRadius: "3px", overflow: "hidden", marginBottom: "10px" }}>
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${pct}%` }}
@@ -580,12 +580,12 @@ export function FinancesPage({ state, setState }) {
               />
             </div>
             <div style={{ marginBottom: "12px" }}>
-              <label style={{ fontSize: "10px", color: "rgba(248, 250, 255, 0.4)", fontFamily: "var(--font-mono)", display: "block", marginBottom: "5px" }}>COLOR</label>
+              <label style={{ fontSize: "10px", color: "var(--text-faint)", fontFamily: "var(--font-mono)", display: "block", marginBottom: "5px" }}>COLOR</label>
               <input
                 type="color"
                 value={newGoal.color}
                 onChange={(e) => setNewGoal({ ...newGoal, color: e.target.value })}
-                style={{ width: "100%", height: "44px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", padding: "4px", cursor: "pointer" }}
+                style={{ width: "100%", height: "44px", borderRadius: "12px", border: "1px solid var(--border)", background: "var(--card)", padding: "4px", cursor: "pointer" }}
               />
             </div>
             <div style={{ display: "flex", gap: "10px" }}>
@@ -602,7 +602,7 @@ export function FinancesPage({ state, setState }) {
 
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           {budgets.length === 0 && (
-            <div style={{ fontSize: "13px", color: "rgba(248, 250, 255, 0.35)", padding: "4px 0" }}>
+            <div style={{ fontSize: "13px", color: "var(--text-faint)", padding: "4px 0" }}>
               No budgets set. Add categories to track spending.
             </div>
           )}
@@ -619,10 +619,10 @@ export function FinancesPage({ state, setState }) {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 style={{
-                  background: "rgba(255,255,255,0.05)",
+                  background: "var(--card)",
                   borderRadius: "14px",
                   padding: "14px",
-                  border: `1px solid ${isOver ? "rgba(248,113,113,0.3)" : "rgba(255,255,255,0.08)"}`,
+                  border: `1px solid ${isOver ? "rgba(248,113,113,0.3)" : "var(--card-mid)"}`,
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
@@ -634,23 +634,23 @@ export function FinancesPage({ state, setState }) {
                       background: barColor,
                       boxShadow: `0 0 8px ${barColor}90`,
                     }} />
-                    <div style={{ color: "#F8FAFF", fontWeight: 700, fontSize: "14px" }}>{b.category}</div>
+                    <div style={{ color: "var(--text)", fontWeight: 700, fontSize: "14px" }}>{b.category}</div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <div style={{ fontSize: "13px", color: "rgba(248,250,255,0.7)", fontFamily: "var(--font-mono)" }}>
+                    <div style={{ fontSize: "13px", color: "var(--text)", fontFamily: "var(--font-mono)" }}>
                       <span style={{ color: barColor, fontWeight: 700 }}>{fmt$(spent)}</span>
-                      <span style={{ color: "rgba(248,250,255,0.35)" }}> / {fmt$(b.limit)}</span>
+                      <span style={{ color: "var(--text-faint)" }}> / {fmt$(b.limit)}</span>
                     </div>
                     <button
                       onClick={() => removeBudget(b.id)}
-                      style={{ background: "none", border: "none", color: "rgba(248,250,255,0.3)", cursor: "pointer", fontSize: "16px" }}
+                      style={{ background: "none", border: "none", color: "var(--text-faint)", cursor: "pointer", fontSize: "16px" }}
                     >
                       ×
                     </button>
                   </div>
                 </div>
 
-                <div style={{ height: "6px", background: "rgba(255,255,255,0.08)", borderRadius: "3px", overflow: "hidden" }}>
+                <div style={{ height: "6px", background: "var(--card-mid)", borderRadius: "3px", overflow: "hidden" }}>
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${pct}%` }}
@@ -693,12 +693,12 @@ export function FinancesPage({ state, setState }) {
               placeholder="500"
             />
             <div style={{ marginBottom: "12px" }}>
-              <label style={{ fontSize: "10px", color: "rgba(248, 250, 255, 0.4)", fontFamily: "var(--font-mono)", display: "block", marginBottom: "5px" }}>COLOR</label>
+              <label style={{ fontSize: "10px", color: "var(--text-faint)", fontFamily: "var(--font-mono)", display: "block", marginBottom: "5px" }}>COLOR</label>
               <input
                 type="color"
                 value={newBudget.color}
                 onChange={(e) => setNewBudget({ ...newBudget, color: e.target.value })}
-                style={{ width: "100%", height: "44px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", padding: "4px", cursor: "pointer" }}
+                style={{ width: "100%", height: "44px", borderRadius: "12px", border: "1px solid var(--border)", background: "var(--card)", padding: "4px", cursor: "pointer" }}
               />
             </div>
             <div style={{ display: "flex", gap: "10px" }}>
@@ -714,10 +714,10 @@ export function FinancesPage({ state, setState }) {
         <SectionLabel accent="#F87171">SUBSCRIPTIONS</SectionLabel>
 
         <div style={{ marginBottom: "20px" }}>
-          <div style={{ fontSize: "10px", color: "rgba(248, 250, 255, 0.45)", fontFamily: "var(--font-mono)", letterSpacing: "0.1em", marginBottom: "4px" }}>MONTHLY BURN</div>
-          <div style={{ fontSize: "32px", fontWeight: 900, color: "#F8FAFF" }}>
+          <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", letterSpacing: "0.1em", marginBottom: "4px" }}>MONTHLY BURN</div>
+          <div style={{ fontSize: "32px", fontWeight: 900, color: "var(--text)" }}>
             ${subTotal.toFixed(2)}
-            <span style={{ fontSize: "14px", fontWeight: 500, color: "rgba(248, 250, 255, 0.4)", marginLeft: "4px" }}>/mo</span>
+            <span style={{ fontSize: "14px", fontWeight: 500, color: "var(--text-faint)", marginLeft: "4px" }}>/mo</span>
           </div>
         </div>
 
@@ -730,18 +730,18 @@ export function FinancesPage({ state, setState }) {
                 justifyContent: "space-between",
                 alignItems: "center",
                 padding: "14px 0",
-                borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+                borderBottom: "1px solid var(--border)",
               }}
             >
               <div>
-                <div style={{ fontWeight: 700, fontSize: "14px", color: "#F8FAFF" }}>{s.name}</div>
-                <div style={{ fontSize: "11px", color: "rgba(248, 250, 255, 0.45)", marginTop: "2px" }}>Renews {s.renews}</div>
+                <div style={{ fontWeight: 700, fontSize: "14px", color: "var(--text)" }}>{s.name}</div>
+                <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>Renews {s.renews}</div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <div style={{ fontWeight: 800, fontSize: "15px", color: "#F8FAFF" }}>${Number(s.cost || 0).toFixed(2)}</div>
+                <div style={{ fontWeight: 800, fontSize: "15px", color: "var(--text)" }}>${Number(s.cost || 0).toFixed(2)}</div>
                 <button
                   onClick={() => removeSub(s.id)}
-                  style={{ background: "none", border: "none", color: "rgba(248, 250, 255, 0.3)", cursor: "pointer", fontSize: "18px" }}
+                  style={{ background: "none", border: "none", color: "var(--text-faint)", cursor: "pointer", fontSize: "18px" }}
                 >
                   ×
                 </button>
@@ -797,7 +797,7 @@ export function FinancesPage({ state, setState }) {
 
         <div style={{ display: "flex", gap: "6px", marginBottom: "14px" }}>
           {[
-            { id: "all", label: "All", color: "#7C6DFA" },
+            { id: "all", label: "All", color: "var(--accent-main)" },
             { id: "income", label: "Income", color: "#34D399" },
             { id: "expense", label: "Expense", color: "#F87171" },
           ].map((f) => {
@@ -811,9 +811,9 @@ export function FinancesPage({ state, setState }) {
                   flex: 1,
                   padding: "8px 12px",
                   borderRadius: "10px",
-                  border: `1px solid ${active ? f.color + "60" : "rgba(255,255,255,0.08)"}`,
-                  background: active ? f.color + "20" : "rgba(255,255,255,0.03)",
-                  color: active ? f.color : "rgba(248,250,255,0.5)",
+                  border: `1px solid ${active ? f.color + "60" : "var(--card-mid)"}`,
+                  background: active ? f.color + "20" : "var(--card)",
+                  color: active ? f.color : "var(--text-muted)",
                   fontSize: "12px",
                   fontWeight: 700,
                   cursor: "pointer",
@@ -830,7 +830,7 @@ export function FinancesPage({ state, setState }) {
         <div style={{ display: "flex", flexDirection: "column", gap: "2px", maxHeight: "360px", overflowY: "auto" }}>
           <AnimatePresence>
             {filteredTxns.length === 0 && (
-              <div style={{ fontSize: "13px", color: "rgba(248, 250, 255, 0.35)", padding: "12px 0", textAlign: "center" }}>
+              <div style={{ fontSize: "13px", color: "var(--text-faint)", padding: "12px 0", textAlign: "center" }}>
                 No transactions yet.
               </div>
             )}
@@ -845,7 +845,7 @@ export function FinancesPage({ state, setState }) {
                   justifyContent: "space-between",
                   alignItems: "center",
                   padding: "12px 0",
-                  borderBottom: "1px solid rgba(255,255,255,0.05)",
+                  borderBottom: "1px solid var(--border)",
                   gap: "10px",
                 }}
               >
@@ -858,11 +858,11 @@ export function FinancesPage({ state, setState }) {
                       background: t.type === "income" ? "#34D399" : "#F87171",
                       flexShrink: 0,
                     }} />
-                    <div style={{ fontWeight: 700, fontSize: "14px", color: "#F8FAFF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <div style={{ fontWeight: 700, fontSize: "14px", color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {t.description}
                     </div>
                   </div>
-                  <div style={{ fontSize: "11px", color: "rgba(248, 250, 255, 0.4)", marginLeft: "14px" }}>
+                  <div style={{ fontSize: "11px", color: "var(--text-faint)", marginLeft: "14px" }}>
                     {formatDate(t.date)} · {t.category}
                   </div>
                 </div>
@@ -877,7 +877,7 @@ export function FinancesPage({ state, setState }) {
                   </div>
                   <button
                     onClick={() => removeTxn(t.id)}
-                    style={{ background: "none", border: "none", color: "rgba(248,250,255,0.3)", cursor: "pointer", fontSize: "16px" }}
+                    style={{ background: "none", border: "none", color: "var(--text-faint)", cursor: "pointer", fontSize: "16px" }}
                   >
                     ×
                   </button>
@@ -912,9 +912,9 @@ export function FinancesPage({ state, setState }) {
                       flex: 1,
                       padding: "10px",
                       borderRadius: "10px",
-                      border: `1px solid ${active ? opt.color + "70" : "rgba(255,255,255,0.08)"}`,
-                      background: active ? opt.color + "20" : "rgba(255,255,255,0.03)",
-                      color: active ? opt.color : "rgba(248,250,255,0.5)",
+                      border: `1px solid ${active ? opt.color + "70" : "var(--card-mid)"}`,
+                      background: active ? opt.color + "20" : "var(--card)",
+                      color: active ? opt.color : "var(--text-muted)",
                       fontSize: "13px",
                       fontWeight: 700,
                       cursor: "pointer",
@@ -1044,7 +1044,7 @@ export function FinancesPage({ state, setState }) {
               <div style={{
                 fontSize: "15px",
                 fontWeight: 700,
-                color: "#F8FAFF",
+                color: "var(--text)",
                 marginBottom: "6px",
               }}>
                 {celebratedGoal.name}
@@ -1052,7 +1052,7 @@ export function FinancesPage({ state, setState }) {
 
               <div style={{
                 fontSize: "13px",
-                color: "rgba(248,250,255,0.5)",
+                color: "var(--text-muted)",
                 marginBottom: "28px",
                 lineHeight: 1.5,
               }}>

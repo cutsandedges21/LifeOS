@@ -20,7 +20,7 @@ main * { max-width: 100%; }
   top: 0;
   bottom: 0;
   width: 24px;
-  background: linear-gradient(to left, #080810, transparent);
+  background: linear-gradient(to left, var(--bg), transparent);
   pointer-events: none;
 }
 

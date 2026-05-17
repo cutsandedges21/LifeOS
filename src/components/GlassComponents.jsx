@@ -1,14 +1,16 @@
 import { motion } from "framer-motion";
 
-// ── Design tokens (inline for component self-sufficiency) ─────────────
+// ── Design tokens — read theme-aware CSS variables emitted from App.jsx ──
+// Shadow values vary heavily between dark and light themes, so they pull
+// from --shadow rather than carrying literal values. Blur is theme-neutral.
 const G = {
-  bg:         "rgba(255, 255, 255, 0.05)",
-  bgMid:      "rgba(255, 255, 255, 0.08)",
-  bgHigh:     "rgba(255, 255, 255, 0.12)",
-  border:     "rgba(255, 255, 255, 0.1)",
-  borderHigh: "rgba(255, 255, 255, 0.15)",
-  shadow:     "0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.07)",
-  shadowHigh: "0 16px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.12)",
+  bg:         "var(--card)",
+  bgMid:      "var(--card-mid)",
+  bgHigh:     "var(--card-high)",
+  border:     "var(--border)",
+  borderHigh: "var(--border-high)",
+  shadow:     "var(--shadow)",
+  shadowHigh: "var(--shadow)",
   blur:       "blur(24px) saturate(180%)",
   radius:     "20px",
   radiusSm:   "14px",
@@ -16,6 +18,19 @@ const G = {
 
 // Spring config
 const spring = { type: "spring", stiffness: 420, damping: 32 };
+
+// Build a CSS color from (color, alpha 0-1). Handles two input forms:
+//   - "var(--accent-main)" → "rgba(var(--accent-main-rgb), 0.5)"
+//   - "#7C6DFA"            → "#7C6DFA80"
+// Needed because the codebase historically concatenated hex+alpha strings
+// (e.g. `${color}80`), which breaks when `color` is a CSS variable.
+const alpha = (color, a) => {
+  if (typeof color === "string" && color.startsWith("var(--accent-main")) {
+    return `rgba(var(--accent-main-rgb), ${a})`;
+  }
+  const hex = Math.round(a * 255).toString(16).padStart(2, "0").toUpperCase();
+  return `${color}${hex}`;
+};
 
 // ── GlassCard ─────────────────────────────────────────────────────────
 export const GlassCard = ({
@@ -67,7 +82,7 @@ export const GlassCard = ({
 };
 
 // ── SectionHeader — label inside a card ───────────────────────────────
-export const SectionHeader = ({ label, accent = "#7C6DFA", right }) => (
+export const SectionHeader = ({ label, accent = "var(--accent-main)", right }) => (
   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
       <span
@@ -77,7 +92,7 @@ export const SectionHeader = ({ label, accent = "#7C6DFA", right }) => (
           height: "14px",
           borderRadius: "2px",
           background: accent,
-          boxShadow: `0 0 8px ${accent}80`,
+          boxShadow: `0 0 8px ${alpha(accent, 0.5)}`,
         }}
       />
       <span
@@ -85,7 +100,7 @@ export const SectionHeader = ({ label, accent = "#7C6DFA", right }) => (
           fontFamily: "'DM Mono', monospace",
           fontSize: "10px",
           letterSpacing: "0.14em",
-          color: "rgba(248, 250, 255, 0.4)",
+          color: "var(--text-faint)",
           textTransform: "uppercase",
         }}
       >
@@ -99,10 +114,10 @@ export const SectionHeader = ({ label, accent = "#7C6DFA", right }) => (
 // ── TimelineItem ──────────────────────────────────────────────────────
 export const TimelineItem = ({ status, time, title, details, children, onClick, index = 0 }) => {
   const cfg = {
-    completed: { color: "#34D399", icon: "✓", bg: "rgba(52,211,153,0.08)", border: "rgba(52,211,153,0.20)", opacity: 0.85 },
-    current:   { color: "#7C6DFA", icon: "▶", bg: "rgba(124,109,250,0.10)", border: "rgba(124,109,250,0.35)", opacity: 1, pulse: true },
-    upcoming:  { color: "rgba(248, 250, 255, 0.4)", icon: "○", bg: G.bg, border: G.border, opacity: 0.6 },
-    missed:    { color: "#F87171", icon: "✕", bg: "rgba(248,113,113,0.08)", border: "rgba(248,113,113,0.25)", opacity: 1 },
+    completed: { color: "#34D399",          icon: "✓", bg: "rgba(52,211,153,0.08)",          border: "rgba(52,211,153,0.20)",          opacity: 0.85 },
+    current:   { color: "var(--accent-main)", icon: "▶", bg: "rgba(var(--accent-main-rgb),0.10)", border: "rgba(var(--accent-main-rgb),0.35)", opacity: 1, pulse: true },
+    upcoming:  { color: "var(--text-faint)",  icon: "○", bg: G.bg,                           border: G.border,                         opacity: 0.6 },
+    missed:    { color: "#F87171",          icon: "✕", bg: "rgba(248,113,113,0.08)",          border: "rgba(248,113,113,0.25)",          opacity: 1 },
   };
   const c = cfg[status] || cfg.upcoming;
 
@@ -123,11 +138,11 @@ export const TimelineItem = ({ status, time, title, details, children, onClick, 
             height: "10px",
             borderRadius: "50%",
             background: c.color,
-            boxShadow: c.pulse ? `0 0 12px ${c.color}90` : "none",
+            boxShadow: c.pulse ? `0 0 12px ${alpha(c.color, 0.56)}` : "none",
             flexShrink: 0,
           }}
         />
-        <div style={{ flex: 1, width: "1.5px", background: `linear-gradient(to bottom, ${c.color}40, transparent)`, marginTop: "4px" }} />
+        <div style={{ flex: 1, width: "1.5px", background: `linear-gradient(to bottom, ${alpha(c.color, 0.25)}, transparent)`, marginTop: "4px" }} />
       </div>
 
       {/* Content */}
@@ -144,7 +159,7 @@ export const TimelineItem = ({ status, time, title, details, children, onClick, 
           border: `1px solid ${c.border}`,
           opacity: c.opacity,
           cursor: onClick ? "pointer" : "default",
-          boxShadow: c.pulse ? `0 0 20px ${c.color}20` : "none",
+          boxShadow: c.pulse ? `0 0 20px ${alpha(c.color, 0.12)}` : "none",
           marginBottom: "2px",
         }}
       >
@@ -154,8 +169,8 @@ export const TimelineItem = ({ status, time, title, details, children, onClick, 
           </span>
           <span style={{ color: c.color, fontSize: "16px", lineHeight: 1 }}>{c.icon}</span>
         </div>
-        <div style={{ color: "#F8FAFF", fontSize: "14px", fontWeight: 600, marginBottom: details ? "4px" : 0 }}>{title}</div>
-        {details && <div style={{ color: "rgba(248, 250, 255, 0.4)", fontSize: "12px" }}>{details}</div>}
+        <div style={{ color: "var(--text)", fontSize: "14px", fontWeight: 600, marginBottom: details ? "4px" : 0 }}>{title}</div>
+        {details && <div style={{ color: "var(--text-faint)", fontSize: "12px" }}>{details}</div>}
         {children}
       </motion.div>
     </motion.div>
@@ -184,8 +199,8 @@ export const AccountabilityCard = ({ missedGoals, explanation, setExplanation, o
     <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
       <div style={{ fontSize: "24px" }}>⚠️</div>
       <div>
-        <div style={{ color: "#F8FAFF", fontSize: "15px", fontWeight: 700 }}>Accountability Required</div>
-        <div style={{ color: "rgba(248, 250, 255, 0.4)", fontSize: "12px" }}>
+        <div style={{ color: "var(--text)", fontSize: "15px", fontWeight: 700 }}>Accountability Required</div>
+        <div style={{ color: "var(--text-faint)", fontSize: "12px" }}>
           You missed {missedGoals.length} goal{missedGoals.length > 1 ? "s" : ""}. Explain why to continue.
         </div>
       </div>
@@ -207,7 +222,7 @@ export const AccountabilityCard = ({ missedGoals, explanation, setExplanation, o
         border: `1px solid ${explanation ? "#F87171" : "rgba(248,113,113,0.2)"}`,
         borderRadius: "12px",
         padding: "12px",
-        color: "#F8FAFF",
+        color: "var(--text)",
         fontSize: "13px",
         minHeight: "80px",
         resize: "none",
@@ -245,7 +260,7 @@ export const AccountabilityCard = ({ missedGoals, explanation, setExplanation, o
 // ── HeroSection ───────────────────────────────────────────────────────
 export const HeroSection = ({ greeting, metrics }) => {
   const metricList = [
-    { label: "DAY", value: metrics.dayProgress, color: "#7C6DFA" },
+    { label: "DAY", value: metrics.dayProgress, color: "var(--accent-main)" },
     { label: "SLEEP", value: metrics.sleep, color: "#34D399" },
     { label: "STREAK", value: `${metrics.streak}d`, color: "#FBBF24" },
     { label: "GOALS", value: metrics.goals, color: "#22D3EE" },
@@ -273,16 +288,16 @@ export const HeroSection = ({ greeting, metrics }) => {
       <div style={{
         position: "absolute", top: 0, right: 0,
         width: "180px", height: "180px",
-        background: "radial-gradient(circle at top right, rgba(124,109,250,0.15) 0%, transparent 65%)",
+        background: "radial-gradient(circle at top right, rgba(var(--accent-main-rgb), 0.15) 0%, transparent 65%)",
         pointerEvents: "none",
       }} />
 
-      <div style={{ fontSize: "11px", color: "rgba(248, 250, 255, 0.4)", marginBottom: "4px", fontFamily: "'DM Mono', monospace", letterSpacing: "0.1em" }}>
+      <div style={{ fontSize: "11px", color: "var(--text-faint)", marginBottom: "4px", fontFamily: "'DM Mono', monospace", letterSpacing: "0.1em" }}>
         {metrics.date}
       </div>
-      <div style={{ fontSize: "clamp(18px, 5.5vw, 24px)", fontWeight: 800, color: "#F8FAFF", lineHeight: 1.2, marginBottom: "18px" }}>
+      <div style={{ fontSize: "clamp(18px, 5.5vw, 24px)", fontWeight: 800, color: "var(--text)", lineHeight: 1.2, marginBottom: "18px" }}>
         {greeting}
-        <span style={{ color: "#7C6DFA" }}> {metrics.name}</span>
+        <span style={{ color: "var(--accent-main)" }}> {metrics.name}</span>
       </div>
 
       {/* 4 metric chips */}
@@ -291,15 +306,15 @@ export const HeroSection = ({ greeting, metrics }) => {
           <div
             key={m.label}
             style={{
-              background: "rgba(255, 255, 255, 0.05)",
+              background: "var(--card)",
               borderRadius: "12px",
               padding: "10px 6px",
               textAlign: "center",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
+              border: "1px solid var(--border)",
             }}
           >
             <div style={{ color: m.color, fontSize: "17px", fontWeight: 800, lineHeight: 1.1 }}>{m.value}</div>
-            <div style={{ color: "rgba(248, 250, 255, 0.4)", fontSize: "9px", fontFamily: "'DM Mono', monospace", letterSpacing: "0.08em", marginTop: "3px" }}>{m.label}</div>
+            <div style={{ color: "var(--text-faint)", fontSize: "9px", fontFamily: "'DM Mono', monospace", letterSpacing: "0.08em", marginTop: "3px" }}>{m.label}</div>
           </div>
         ))}
       </div>
@@ -308,7 +323,7 @@ export const HeroSection = ({ greeting, metrics }) => {
 };
 
 // ── MetricCard ────────────────────────────────────────────────────────
-export const MetricCard = ({ label, value, subtext, color = "#F8FAFF", icon, delay = 0, ...props }) => (
+export const MetricCard = ({ label, value, subtext, color = "var(--text)", icon, delay = 0, ...props }) => (
   <motion.div
     initial={{ opacity: 0, scale: 0.93 }}
     animate={{ opacity: 1, scale: 1 }}
@@ -325,9 +340,9 @@ export const MetricCard = ({ label, value, subtext, color = "#F8FAFF", icon, del
     }}
   >
     {icon && <div style={{ fontSize: "18px", marginBottom: "6px" }}>{icon}</div>}
-    <div style={{ color: "rgba(248, 250, 255, 0.4)", fontSize: "9px", fontFamily: "'DM Mono', monospace", letterSpacing: "0.12em", marginBottom: "4px" }}>{label}</div>
+    <div style={{ color: "var(--text-faint)", fontSize: "9px", fontFamily: "'DM Mono', monospace", letterSpacing: "0.12em", marginBottom: "4px" }}>{label}</div>
     <div style={{ color, fontSize: "26px", fontWeight: 800, lineHeight: 1 }}>{value}</div>
-    {subtext && <div style={{ color: "rgba(248, 250, 255, 0.4)", fontSize: "11px", marginTop: "3px" }}>{subtext}</div>}
+    {subtext && <div style={{ color: "var(--text-faint)", fontSize: "11px", marginTop: "3px" }}>{subtext}</div>}
   </motion.div>
 );
 
@@ -356,7 +371,7 @@ export const PlatformCard = ({ platform, handle, followers, growth, icon, onRemo
           width: "40px",
           height: "40px",
           borderRadius: "12px",
-          background: "rgba(255, 255, 255, 0.08)",
+          background: "var(--card-mid)",
           border: `1px solid ${G.border}`,
           display: "flex",
           alignItems: "center",
@@ -367,19 +382,19 @@ export const PlatformCard = ({ platform, handle, followers, growth, icon, onRemo
         {icon}
       </div>
       <div>
-        <div style={{ color: "#F8FAFF", fontSize: "14px", fontWeight: 600 }}>{platform}</div>
-        <div style={{ color: "rgba(248, 250, 255, 0.4)", fontSize: "11px" }}>{handle}</div>
+        <div style={{ color: "var(--text)", fontSize: "14px", fontWeight: 600 }}>{platform}</div>
+        <div style={{ color: "var(--text-faint)", fontSize: "11px" }}>{handle}</div>
       </div>
     </div>
     <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
       <div style={{ textAlign: "right" }}>
-        <div style={{ color: "#F8FAFF", fontSize: "17px", fontWeight: 700 }}>{followers}</div>
+        <div style={{ color: "var(--text)", fontSize: "17px", fontWeight: 700 }}>{followers}</div>
         <div style={{ color: "#34D399", fontSize: "11px", fontWeight: 600 }}>+{growth}</div>
       </div>
       {onRemove && (
         <button
           onClick={onRemove}
-          style={{ background: "none", border: "none", color: "rgba(248, 250, 255, 0.4)", cursor: "pointer", fontSize: "16px", padding: "4px" }}
+          style={{ background: "none", border: "none", color: "var(--text-faint)", cursor: "pointer", fontSize: "16px", padding: "4px" }}
         >
           ×
         </button>
@@ -414,10 +429,10 @@ export const BusinessCard = ({ name, revenue, expenses, clients, color, onRemove
             width: "8px",
             height: "8px",
             borderRadius: "50%",
-            background: color || "#7C6DFA",
-            boxShadow: `0 0 10px ${color || "#7C6DFA"}90`,
+            background: color || "var(--accent-main)",
+            boxShadow: `0 0 10px ${alpha(color || "var(--accent-main)", 0.56)}`,
           }} />
-          <div style={{ color: "#F8FAFF", fontSize: "17px", fontWeight: 800, letterSpacing: "-0.01em" }}>{name}</div>
+          <div style={{ color: "var(--text)", fontSize: "17px", fontWeight: 800, letterSpacing: "-0.01em" }}>{name}</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <div style={{ color: profit >= 0 ? "#34D399" : "#F87171", fontSize: "16px", fontWeight: 800 }}>
@@ -426,14 +441,14 @@ export const BusinessCard = ({ name, revenue, expenses, clients, color, onRemove
           {onRemove && (
             <button
               onClick={onRemove}
-              style={{ background: "none", border: "none", color: "rgba(248, 250, 255, 0.4)", cursor: "pointer", fontSize: "16px", padding: "2px" }}
+              style={{ background: "none", border: "none", color: "var(--text-faint)", cursor: "pointer", fontSize: "16px", padding: "2px" }}
             >
               ×
             </button>
           )}
         </div>
       </div>
-      <div style={{ color: "rgba(248, 250, 255, 0.4)", fontSize: "10px", fontFamily: "'DM Mono', monospace", letterSpacing: "0.14em", marginBottom: "12px", marginLeft: "18px" }}>
+      <div style={{ color: "var(--text-faint)", fontSize: "10px", fontFamily: "'DM Mono', monospace", letterSpacing: "0.14em", marginBottom: "12px", marginLeft: "18px" }}>
         BUSINESS · {margin}% MARGIN
       </div>
 
@@ -443,23 +458,23 @@ export const BusinessCard = ({ name, revenue, expenses, clients, color, onRemove
           { label: "EXP", value: `$${expenses.toLocaleString()}`, color: "#F87171" },
           { label: "CLIENTS", value: clients ?? 0, color: "#22D3EE" },
         ].map((item) => (
-          <div key={item.label} style={{ flex: 1, background: "rgba(255, 255, 255, 0.05)", borderRadius: "10px", padding: "8px", textAlign: "center" }}>
-            <div style={{ color: "rgba(248, 250, 255, 0.4)", fontSize: "9px", fontFamily: "'DM Mono', monospace", letterSpacing: "0.1em" }}>{item.label}</div>
+          <div key={item.label} style={{ flex: 1, background: "var(--card)", borderRadius: "10px", padding: "8px", textAlign: "center" }}>
+            <div style={{ color: "var(--text-faint)", fontSize: "9px", fontFamily: "'DM Mono', monospace", letterSpacing: "0.1em" }}>{item.label}</div>
             <div style={{ color: item.color, fontSize: "13px", fontWeight: 700 }}>{item.value}</div>
           </div>
         ))}
       </div>
 
       {/* Profit margin bar */}
-      <div style={{ height: "3px", background: "rgba(255, 255, 255, 0.08)", borderRadius: "2px", overflow: "hidden" }}>
+      <div style={{ height: "3px", background: "var(--card-mid)", borderRadius: "2px", overflow: "hidden" }}>
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${margin}%` }}
           transition={{ duration: 0.8, ease: "easeOut" }}
-          style={{ height: "100%", background: `linear-gradient(90deg, ${color || "#7C6DFA"}, ${color || "#7C6DFA"}aa)`, borderRadius: "2px" }}
+          style={{ height: "100%", background: `linear-gradient(90deg, ${color || "var(--accent-main)"}, ${alpha(color || "var(--accent-main)", 0.67)})`, borderRadius: "2px" }}
         />
       </div>
-      <div style={{ color: "rgba(248, 250, 255, 0.4)", fontSize: "10px", marginTop: "4px", textAlign: "right" }}>{margin}% margin</div>
+      <div style={{ color: "var(--text-faint)", fontSize: "10px", marginTop: "4px", textAlign: "right" }}>{margin}% margin</div>
     </motion.div>
   );
 };

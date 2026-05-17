@@ -190,11 +190,11 @@ export function MainPage({
 
       {/* Timeline Section */}
       <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-        <SectionLabel accent="#7C6DFA">TODAY'S FLOW</SectionLabel>
+        <SectionLabel accent="var(--accent-main)">TODAY'S FLOW</SectionLabel>
 
         {state.goals.length === 0 ? (
           <GlassCard style={{ textAlign: "center", padding: "40px 20px" }}>
-            <div style={{ color: "rgba(248, 250, 255, 0.4)", fontSize: "14px", fontWeight: 500 }}>
+            <div style={{ color: "var(--text-faint)", fontSize: "14px", fontWeight: 500 }}>
               No goals set for today yet.
             </div>
           </GlassCard>
@@ -229,7 +229,7 @@ export function MainPage({
 
       {/* Overseer Chat */}
       <GlassCard style={{ marginTop: "24px", padding: "20px" }}>
-        <SectionLabel accent="#7C6DFA" icon="✦">OVERSEER</SectionLabel>
+        <SectionLabel accent="var(--accent-main)" icon="✦">OVERSEER</SectionLabel>
         
         <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
           <div
@@ -237,13 +237,13 @@ export function MainPage({
               width: "40px",
               height: "40px",
               borderRadius: "14px",
-              background: "rgba(124, 109, 250, 0.15)",
-              border: "1px solid rgba(124, 109, 250, 0.3)",
+              background: "rgba(var(--accent-main-rgb), 0.15)",
+              border: "1px solid rgba(var(--accent-main-rgb), 0.3)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               fontSize: "20px",
-              boxShadow: "0 0 15px rgba(124, 109, 250, 0.2)",
+              boxShadow: "0 0 15px rgba(var(--accent-main-rgb), 0.2)",
             }}
           >
             ✦
@@ -251,9 +251,12 @@ export function MainPage({
           <div>
             <div style={{ fontWeight: 800, fontSize: "15px", display: "flex", alignItems: "center", gap: "6px" }}>
               Overseer
-              <span style={{ display: "block", width: "6px", height: "6px", borderRadius: "50%", background: "#34D399", boxShadow: "0 0 8px #34D399" }} />
+              <span style={{ display: "inline-block", marginLeft: "8px", fontSize: "11px", color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>
+                {state.overseerMessageCount}/3
+              </span>
+              <span style={{ display: "block", width: "6px", height: "6px", borderRadius: "50%", background: state.overseerMessageCount >= 3 ? "#EF4444" : "#34D399", boxShadow: `0 0 8px ${state.overseerMessageCount >= 3 ? "#EF4444" : "#34D399"}` }} />
             </div>
-            <div style={{ fontSize: "11px", color: "rgba(248, 250, 255, 0.4)", fontWeight: 500 }}>
+            <div style={{ fontSize: "11px", color: "var(--text-faint)", fontWeight: 500 }}>
               AI Accountability Agent
             </div>
           </div>
@@ -288,12 +291,12 @@ export function MainPage({
                     padding: "12px 16px",
                     borderRadius: "16px",
                     background: m.role === "user"
-                      ? "rgba(124, 109, 250, 0.15)"
-                      : "rgba(255, 255, 255, 0.05)",
-                    border: `1px solid ${m.role === "user" ? "rgba(124, 109, 250, 0.3)" : "rgba(255, 255, 255, 0.1)"}`,
+                      ? "rgba(var(--accent-main-rgb), 0.15)"
+                      : "var(--card)",
+                    border: `1px solid ${m.role === "user" ? "rgba(var(--accent-main-rgb), 0.3)" : "var(--border)"}`,
                     fontSize: "13px",
                     lineHeight: 1.5,
-                    color: m.role === "ai" ? "#F8FAFF" : "#F8FAFF",
+                    color: m.role === "ai" ? "var(--text)" : "var(--text)",
                     opacity: m.role === "ai" ? 0.8 : 1,
                   }}
                 >
@@ -302,13 +305,13 @@ export function MainPage({
               </div>
             ))}
             {overseerLoading && (
-              <div style={{ display: "flex", gap: "4px", padding: "12px 16px", background: "rgba(255, 255, 255, 0.05)", borderRadius: "16px", width: "fit-content", border: "1px solid rgba(255, 255, 255, 0.1)" }}>
+              <div style={{ display: "flex", gap: "4px", padding: "12px 16px", background: "var(--card)", borderRadius: "16px", width: "fit-content", border: "1px solid var(--border)" }}>
                 {[0, 1, 2].map((i) => (
                   <motion.span
                     key={i}
                     animate={{ opacity: [0.3, 1, 0.3] }}
                     transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
-                    style={{ width: "5px", height: "5px", borderRadius: "50%", background: "rgba(248, 250, 255, 0.4)" }}
+                    style={{ width: "5px", height: "5px", borderRadius: "50%", background: "var(--text-faint)" }}
                   />
                 ))}
               </div>
@@ -322,22 +325,22 @@ export function MainPage({
             display: "flex",
             alignItems: "center",
             gap: "10px",
-            background: "rgba(255, 255, 255, 0.05)",
+            background: "var(--card)",
             borderRadius: "16px",
             padding: "6px 6px 6px 14px",
-            border: "1px solid rgba(255, 255, 255, 0.1)",
+            border: "1px solid var(--border)",
           }}
         >
           <input
             value={state.overseerInput}
             onChange={(e) => setState((prev) => ({ ...prev, overseerInput: e.target.value }))}
             onKeyDown={(e) => e.key === "Enter" && sendMsg()}
-            placeholder="Message Overseer…"
+            placeholder={state.overseerMessageCount >= 3 ? "Message limit reached today. Come back tomorrow to speak with Overseer" : "Message Overseer"}
             style={{
               flex: 1,
               background: "none",
               border: "none",
-              color: "#F8FAFF",
+              color: state.overseerMessageCount >= 3 ? "var(--text-faint)" : "var(--text)",
               fontSize: "14px",
               fontFamily: "inherit",
               outline: "none",
@@ -345,21 +348,21 @@ export function MainPage({
           />
           <motion.button
             onClick={sendMsg}
-            disabled={overseerLoading}
+            disabled={overseerLoading || state.overseerMessageCount >= 3}
             whileTap={{ scale: 0.9 }}
             style={{
               width: "36px",
               height: "36px",
               borderRadius: "12px",
-              background: "#7C6DFA",
+              background: state.overseerMessageCount >= 3 ? "var(--text-faint)" : "var(--accent-main)",
               border: "none",
-              color: "#fff",
+              color: state.overseerMessageCount >= 3 ? "var(--text)" : "#fff",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               cursor: "pointer",
-              opacity: overseerLoading ? 0.5 : 1,
-              boxShadow: "0 4px 12px rgba(124, 109, 250, 0.3)",
+              opacity: (overseerLoading || state.overseerMessageCount >= 3) ? 0.5 : 1,
+              boxShadow: "0 4px 12px rgba(var(--accent-main-rgb), 0.3)",
             }}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -401,7 +404,7 @@ const SwipeableGoalItem = ({ goal, startEdit, setMissedGoal, editingGoalId, edit
           onClick={handleEditClick}
           style={{
             width: "70px",
-            background: "#7C6DFA",
+            background: "var(--accent-main)",
             border: "none",
             color: "#fff",
             fontWeight: 700,
@@ -447,11 +450,11 @@ const SwipeableGoalItem = ({ goal, startEdit, setMissedGoal, editingGoalId, edit
                 onKeyDown={(e) => e.key === "Enter" && saveEdit()}
                 style={{
                   flex: 1,
-                  background: "rgba(255, 255, 255, 0.05)",
-                  border: "1px solid #7C6DFA",
+                  background: "var(--card)",
+                  border: "1px solid var(--accent-main)",
                   borderRadius: "8px",
                   padding: "4px 8px",
-                  color: "#F8FAFF",
+                  color: "var(--text)",
                   fontSize: "inherit",
                   fontFamily: "inherit",
                   outline: "none",

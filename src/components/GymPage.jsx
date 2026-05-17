@@ -104,9 +104,9 @@ export function GymPage({ state, setState }) {
                   flex: 1,
                   padding: "10px 0",
                   borderRadius: "12px",
-                  background: isActive ? "#FBBF24" : "rgba(255,255,255,0.05)",
-                  border: `1px solid ${isActive ? "#FBBF24" : isToday ? "rgba(251, 191, 36, 0.4)" : "rgba(255,255,255,0.08)"}`,
-                  color: isActive ? "#000" : "rgba(248, 250, 255, 0.6)",
+                  background: isActive ? "#FBBF24" : "var(--card)",
+                  border: `1px solid ${isActive ? "#FBBF24" : isToday ? "rgba(251, 191, 36, 0.4)" : "var(--border)"}`,
+                  color: isActive ? "#000" : "var(--text-muted)",
                   fontSize: "11px",
                   fontWeight: 800,
                   cursor: "pointer",
@@ -213,35 +213,35 @@ export function GymPage({ state, setState }) {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: idx * 0.05 }}
               style={{
-                background: "rgba(255, 255, 255, 0.05)",
+                background: "var(--card)",
                 backdropFilter: "blur(12px)",
                 borderRadius: "16px",
                 padding: "16px",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
+                border: "1px solid var(--border)",
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
               }}
             >
               <div>
-                <div style={{ fontSize: "16px", fontWeight: 700, color: "#F8FAFF" }}>{e.name}</div>
+                <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--text)" }}>{e.name}</div>
                 <div style={{ display: "flex", gap: "12px", marginTop: "4px" }}>
-                  <div style={{ fontSize: "12px", color: "rgba(248, 250, 255, 0.45)" }}>
-                    <span style={{ color: "rgba(248, 250, 255, 0.8)", fontWeight: 600 }}>{e.sets}</span> sets
+                  <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                    <span style={{ color: "var(--text)", fontWeight: 600 }}>{e.sets}</span> sets
                   </div>
-                  <div style={{ fontSize: "12px", color: "rgba(248, 250, 255, 0.45)" }}>
-                    <span style={{ color: "rgba(248, 250, 255, 0.8)", fontWeight: 600 }}>{e.reps}</span> reps
+                  <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                    <span style={{ color: "var(--text)", fontWeight: 600 }}>{e.reps}</span> reps
                   </div>
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                 <div style={{ textAlign: "right" }}>
                   <div style={{ fontSize: "18px", fontWeight: 800, color: "#FBBF24" }}>{e.weight}</div>
-                  <div style={{ fontSize: "9px", color: "rgba(248, 250, 255, 0.4)", fontFamily: "var(--font-mono)" }}>LOAD (LBS)</div>
+                  <div style={{ fontSize: "9px", color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>LOAD (LBS)</div>
                 </div>
                 <button
                   onClick={() => removeExercise(e.id)}
-                  style={{ background: "none", border: "none", color: "rgba(248, 250, 255, 0.2)", cursor: "pointer", fontSize: "20px" }}
+                  style={{ background: "none", border: "none", color: "var(--text-faint)", cursor: "pointer", fontSize: "20px" }}
                 >
                   ×
                 </button>
@@ -249,7 +249,7 @@ export function GymPage({ state, setState }) {
             </motion.div>
           ))}
           {currentExercises.length === 0 && (
-            <div style={{ textAlign: "center", padding: "40px 0", color: "rgba(248, 250, 255, 0.3)", fontSize: "14px" }}>
+            <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-faint)", fontSize: "14px" }}>
               No exercises added for {selectedDay}.
             </div>
           )}
@@ -387,9 +387,9 @@ export function GymPage({ state, setState }) {
             >
               <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
                 <div style={{ fontSize: "22px" }}>⚠️</div>
-                <div style={{ fontSize: "17px", fontWeight: 800, color: "#F8FAFF" }}>Skipping the gym?</div>
+                <div style={{ fontSize: "17px", fontWeight: 800, color: "var(--text)" }}>Skipping the gym?</div>
               </div>
-              <div style={{ fontSize: "12px", color: "rgba(248,250,255,0.5)", marginBottom: "16px", lineHeight: 1.5 }}>
+              <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "16px", lineHeight: 1.5 }}>
                 Streak doesn't increment today. Be honest — what got in the way?
               </div>
 
@@ -404,7 +404,7 @@ export function GymPage({ state, setState }) {
                   border: `1px solid ${skipReason ? "rgba(248,113,113,0.6)" : "rgba(248,113,113,0.2)"}`,
                   borderRadius: "12px",
                   padding: "12px",
-                  color: "#F8FAFF",
+                  color: "var(--text)",
                   fontSize: "13px",
                   minHeight: "90px",
                   resize: "none",

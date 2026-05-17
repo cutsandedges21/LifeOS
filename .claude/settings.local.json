@@ -23,7 +23,11 @@
       "Bash(bash *)",
       "mcp__plugin_playwright_playwright__browser_resize",
       "mcp__plugin_playwright_playwright__browser_evaluate",
-      "mcp__plugin_playwright_playwright__browser_close"
+      "mcp__plugin_playwright_playwright__browser_close",
+      "mcp__plugin_context7_context7__resolve-library-id",
+      "mcp__plugin_context7_context7__query-docs",
+      "Bash(git -C \"C:\\\\Users\\\\sport\\\\OneDrive\\\\Documents\\\\CodingPersonal\\\\lifeos\" add docs/superpowers/specs/2026-05-15-menu-overseer-theme-design.md)",
+      "Bash(git -C 'C:\\\\Users\\\\sport\\\\OneDrive\\\\Documents\\\\CodingPersonal\\\\lifeos' commit -m ' *)"
     ]
   }
 }

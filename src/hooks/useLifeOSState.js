@@ -3,6 +3,7 @@ import { storage, STORAGE_KEYS } from "../utils/storage.js";
 
 const INITIAL_STATE = {
   user: "",
+  theme: "dark", // "dark" | "light" — see src/theme/colors.js
   workoutDay: "",
   whoop: { recovery: 0, sleep: 0, strain: 0, hrv: 0, rhr: 0, status: "gray", advice: "" },
   goals: [],
@@ -26,6 +27,8 @@ const INITIAL_STATE = {
   },
   overseerLog: [],
   overseerInput: "",
+  overseerMessageCount: 0,
+  overseerMessageDate: "",
   gymSplit: {
     monday: "",
     tuesday: "",
@@ -52,6 +55,7 @@ const INITIAL_STATE = {
   gymVisits: [],
   lastStreakCheck: "",
   lastGoalsReset: "",
+  lastOverseerReset: "",
 };
 
 export const useLifeOSState = () => {

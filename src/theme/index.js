@@ -1,23 +1,35 @@
-import { darkColors, spacing, borderRadius, typography, pageTints, pageAccents } from "./colors.js";
+import {
+  darkColors,
+  lightColors,
+  spacing,
+  borderRadius,
+  typography,
+  cssVarsForTheme,
+  getPageAccentForTheme,
+  getPageTintForTheme,
+} from "./colors.js";
 
 export const themes = {
-  dark: {
-    colors: darkColors,
-    spacing,
-    borderRadius,
-    typography,
-  },
+  dark:  { colors: darkColors,  spacing, borderRadius, typography },
+  light: { colors: lightColors, spacing, borderRadius, typography },
 };
 
 export const defaultTheme = "dark";
 
 export const getTheme = (themeMode) => themes[themeMode] || themes.dark;
 
-// Returns a very subtle per-page tint color overlay (not a full background)
-export const getPageTint = (page) => pageTints[page] || pageTints.main;
+// Theme-aware page accent + tint lookup.
+// The `themeName` argument is optional — when omitted, dark is used (legacy
+// callers that haven't been updated still work).
+export const getPageAccent = (page, themeName = "dark") =>
+  getPageAccentForTheme(page, themeName);
 
-// Returns the accent color for a given page
-export const getPageAccent = (page) => pageAccents[page] || pageAccents.main;
+export const getPageTint = (page, themeName = "dark") =>
+  getPageTintForTheme(page, themeName);
 
-// Legacy helper kept for backward compat (returns unified dark bg)
-export const getPageGradient = (_page) => "#080810";
+// Legacy helper (unified bg) — now reads from the theme variable so
+// gradients/backgrounds keep working when callers pass it as a literal.
+export const getPageGradient = (_page) => "var(--bg)";
+
+// Re-export so App.jsx can apply CSS variables on theme change.
+export { cssVarsForTheme };
