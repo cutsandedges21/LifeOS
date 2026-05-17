@@ -18,6 +18,17 @@ import {
   snapshotsEqual,
   computeNetWorth,
 } from "./utils/snapshots.js";
+import {
+  notificationStatus,
+  requestNotificationPermission,
+  showNotification,
+  scheduleDailyReminder,
+  cancelDailyReminder,
+  upcomingRenewals,
+  isStandalone,
+  canInstall,
+  promptInstall,
+} from "./utils/notifications.js";
 
 const GREETINGS = [
   "Let's lock in,",
@@ -399,6 +410,71 @@ export default function LifeOS() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, time.getHours(), state.proactiveNudgeShown]);
 
+  // ─── Daily Overseer notification (9am) ─────────────────────────────────
+  // Only armed when the user has opted in AND browser permission is granted.
+  // The setTimeout chain inside scheduleDailyReminder re-arms after each fire,
+  // so this effect just owns the lifecycle (arm on toggle-on, cancel otherwise).
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (!state.notificationsEnabled) {
+      cancelDailyReminder();
+      return;
+    }
+    if (notificationStatus() !== "granted") {
+      cancelDailyReminder();
+      return;
+    }
+
+    scheduleDailyReminder({
+      hour: 9,
+      minute: 0,
+      onFire: () => {
+        const goalsCt = (state.goals || []).length;
+        const body = goalsCt > 0
+          ? `${goalsCt} goal${goalsCt === 1 ? "" : "s"} on the board. Streak: ${state.streak}d. Lock in.`
+          : `Streak: ${state.streak}d. Set today's goals — what wins do you want?`;
+        showNotification("The Overseer", body, { tag: "lifeos-daily" });
+      },
+    });
+    return () => cancelDailyReminder();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, state.notificationsEnabled, state.streak, state.goals?.length]);
+
+  // ─── Sub renewal notifier ──────────────────────────────────────────────
+  // Once per day per sub, fire a notification when renewal is within 24h.
+  // Dedupe via subRenewalNotified[subId] = ISO date.
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (!state.notificationsEnabled) return;
+    if (notificationStatus() !== "granted") return;
+
+    const today = todayISO();
+    const dueSoon = upcomingRenewals(state.finances?.subs, 1);
+    if (dueSoon.length === 0) return;
+
+    const alreadySent = state.subRenewalNotified || {};
+    const newlySent = {};
+
+    dueSoon.forEach((sub) => {
+      if (alreadySent[sub.id] === today) return;
+      const when = sub.daysUntil === 0 ? "today" : "tomorrow";
+      showNotification(
+        `${sub.name} renews ${when}`,
+        `$${Number(sub.cost || 0).toFixed(2)} hitting your card on ${sub.renews}.`,
+        { tag: `lifeos-sub-${sub.id}` }
+      );
+      newlySent[sub.id] = today;
+    });
+
+    if (Object.keys(newlySent).length > 0) {
+      setState((p) => ({
+        ...p,
+        subRenewalNotified: { ...(p.subRenewalNotified || {}), ...newlySent },
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, state.notificationsEnabled, state.finances?.subs, time.toDateString()]);
+
 
   // Overseer send
   const sendMsg = async (msgOverride) => {
@@ -424,6 +500,12 @@ export default function LifeOS() {
     const totalRevenue = state.businesses.reduce((s, b) => s + b.revenue, 0);
     const totalProfit = state.businesses.reduce((s, b) => s + (b.revenue - b.expenses), 0);
 
+    // Last 5 journal entries — gives Overseer recent self-reported context
+    // ("yesterday you said you were drained — today you still showed up").
+    const recentJournal = (state.journalEntries || [])
+      .slice(-5)
+      .map((j) => `${j.date}: ${j.text}`);
+
     const ctx = {
       date: dayStr(),
       goals: `${completedGoals}/${state.goals.length} done`,
@@ -432,6 +514,7 @@ export default function LifeOS() {
       revenue: totalRevenue,
       profit: totalProfit,
       netWorth: state.finances.netWorth,
+      recentJournal,
     };
 
     const apiMessages = [
@@ -654,6 +737,191 @@ export default function LifeOS() {
   );
 }
 
+// Install + notifications. Two responsibilities, one card because they're
+// the "make this feel like a real app" cluster — both PWA features and both
+// only matter at first run.
+function InstallAndNotificationsCard({ state, setState }) {
+  const [notifPerm, setNotifPerm] = useState(notificationStatus());
+  const [installAvailable, setInstallAvailable] = useState(canInstall());
+  const [installed, setInstalled] = useState(isStandalone());
+
+  // The beforeinstallprompt event fires asynchronously after page load. Listen
+  // for our utility's rebroadcast so the button can light up when available.
+  useEffect(() => {
+    const onAvailable = () => setInstallAvailable(true);
+    const onInstalled = () => {
+      setInstallAvailable(false);
+      setInstalled(true);
+    };
+    window.addEventListener("lifeos:install-available", onAvailable);
+    window.addEventListener("lifeos:installed", onInstalled);
+    return () => {
+      window.removeEventListener("lifeos:install-available", onAvailable);
+      window.removeEventListener("lifeos:installed", onInstalled);
+    };
+  }, []);
+
+  const handleToggleNotifications = async () => {
+    if (state.notificationsEnabled) {
+      setState((p) => ({ ...p, notificationsEnabled: false }));
+      return;
+    }
+    const result = await requestNotificationPermission();
+    setNotifPerm(notificationStatus());
+    if (result === "granted") {
+      setState((p) => ({ ...p, notificationsEnabled: true }));
+      // Fire a confirmation ping so the user sees it works.
+      showNotification("Overseer wired up", "You'll get a 9am check-in daily. Sub renewals get a heads-up too.", { tag: "lifeos-welcome" });
+    }
+  };
+
+  const handleInstall = async () => {
+    const outcome = await promptInstall();
+    if (outcome === "accepted") setInstallAvailable(false);
+  };
+
+  const permLabel =
+    notifPerm === "granted" ? "GRANTED" :
+    notifPerm === "denied" ? "BLOCKED" :
+    notifPerm === "unsupported" ? "UNSUPPORTED" : "NOT SET";
+  const permColor =
+    notifPerm === "granted" ? "#34D399" :
+    notifPerm === "denied" ? "#F87171" :
+    "var(--text-faint)";
+
+  // Hide the install row entirely once the user is already running standalone —
+  // there's nothing to install at that point and "Already installed" reads
+  // cleaner than a disabled button.
+  const showInstall = !installed;
+
+  return (
+    <div
+      style={{
+        background: "var(--card)",
+        backdropFilter: "blur(20px)",
+        borderRadius: "24px",
+        padding: "20px",
+        marginBottom: "16px",
+        border: "1px solid var(--border)",
+      }}
+    >
+      <div style={{ fontSize: "11px", fontWeight: 700, marginBottom: "16px", color: "var(--text-faint)", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
+        APP & NOTIFICATIONS
+      </div>
+
+      {/* Notifications row */}
+      <div style={{ marginBottom: showInstall ? "16px" : 0 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+          <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--text)" }}>
+            Daily Overseer ping
+          </div>
+          <div style={{
+            fontSize: "9px",
+            fontFamily: "var(--font-mono)",
+            letterSpacing: "0.1em",
+            color: permColor,
+            fontWeight: 700,
+          }}>
+            {permLabel}
+          </div>
+        </div>
+        <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "12px", lineHeight: 1.5 }}>
+          Get a 9am notification with today's streak + goal count, plus a heads-up the day before any subscription renews.
+        </div>
+        <button
+          onClick={handleToggleNotifications}
+          disabled={notifPerm === "denied" || notifPerm === "unsupported"}
+          style={{
+            width: "100%",
+            padding: "12px",
+            borderRadius: "12px",
+            border: state.notificationsEnabled
+              ? "1px solid rgba(52,211,153,0.4)"
+              : "1px solid var(--border)",
+            background: state.notificationsEnabled
+              ? "rgba(52,211,153,0.12)"
+              : "var(--card-mid)",
+            color: state.notificationsEnabled ? "#34D399" : "var(--text)",
+            fontWeight: 700,
+            fontSize: "13px",
+            cursor: (notifPerm === "denied" || notifPerm === "unsupported") ? "not-allowed" : "pointer",
+            opacity: (notifPerm === "denied" || notifPerm === "unsupported") ? 0.5 : 1,
+            fontFamily: "inherit",
+          }}
+        >
+          {state.notificationsEnabled ? "✓ Notifications ON" :
+           notifPerm === "denied" ? "Blocked in browser settings" :
+           notifPerm === "unsupported" ? "Not supported here" :
+           "Enable notifications"}
+        </button>
+      </div>
+
+      {/* Install row */}
+      {showInstall && (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+            <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--text)" }}>
+              Install LifeOS
+            </div>
+            <div style={{
+              fontSize: "9px",
+              fontFamily: "var(--font-mono)",
+              letterSpacing: "0.1em",
+              color: installAvailable ? "#34D399" : "var(--text-faint)",
+              fontWeight: 700,
+            }}>
+              {installAvailable ? "READY" : "USE BROWSER MENU"}
+            </div>
+          </div>
+          <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "12px", lineHeight: 1.5 }}>
+            Add to your home screen — runs like a native app, opens straight to your dashboard. On iPhone: Safari → Share → Add to Home Screen.
+          </div>
+          <button
+            onClick={handleInstall}
+            disabled={!installAvailable}
+            style={{
+              width: "100%",
+              padding: "12px",
+              borderRadius: "12px",
+              border: installAvailable
+                ? "1px solid rgba(var(--accent-main-rgb),0.5)"
+                : "1px solid var(--border)",
+              background: installAvailable
+                ? "linear-gradient(135deg, var(--accent-main), rgba(var(--accent-main-rgb),0.75))"
+                : "var(--card-mid)",
+              color: installAvailable ? "#fff" : "var(--text-faint)",
+              fontWeight: 700,
+              fontSize: "13px",
+              cursor: installAvailable ? "pointer" : "not-allowed",
+              opacity: installAvailable ? 1 : 0.7,
+              fontFamily: "inherit",
+            }}
+          >
+            {installAvailable ? "Install to Home Screen" : "Open browser's install menu"}
+          </button>
+        </div>
+      )}
+
+      {installed && (
+        <div style={{
+          marginTop: "12px",
+          padding: "10px 12px",
+          borderRadius: "10px",
+          background: "rgba(52,211,153,0.08)",
+          border: "1px solid rgba(52,211,153,0.25)",
+          fontSize: "12px",
+          color: "#34D399",
+          fontFamily: "var(--font-mono)",
+          letterSpacing: "0.05em",
+          textAlign: "center",
+        }}>
+          ✓ RUNNING AS INSTALLED APP
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Three-card theme picker. Each card paints itself with its own theme's
 // accent + bg as a live preview swatch so the user sees exactly what they're
 // switching to. Stacks on narrow screens via auto-fit grid.
@@ -731,6 +999,9 @@ function SettingsPage({ state, setState, resetState }) {
         theme={state.theme || "dark"}
         onChange={(t) => setState((prev) => ({ ...prev, theme: t }))}
       />
+
+      {/* Install + Notifications */}
+      <InstallAndNotificationsCard state={state} setState={setState} />
 
       {/* User Info */}
       <div

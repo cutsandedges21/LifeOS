@@ -73,14 +73,61 @@ export function GymPage({ state, setState }) {
   };
 
   const logVisit = () => {
-    setState((prev) => ({
-      ...prev,
-      gymVisits: [
-        { id: Date.now(), date: todayISO() },
-        ...(prev.gymVisits || []),
-      ],
-    }));
+    const today = todayISO();
+    const todayDay = getTodayDay();
+    setState((prev) => {
+      // Snapshot today's prescribed exercises into the overload log so the
+      // weight progression is captured permanently. Without this snapshot,
+      // editing tomorrow's prescribed weight would silently rewrite "what I
+      // lifted today" — breaking the trend.
+      const todayExercises = prev.gymExercises?.[todayDay] || [];
+      const snapshot = todayExercises.length > 0
+        ? [
+            {
+              id: Date.now() + 1,
+              date: today,
+              dayOfWeek: todayDay,
+              exercises: todayExercises.map((e) => ({
+                name: e.name,
+                weight: e.weight,
+                sets: e.sets,
+                reps: e.reps,
+              })),
+            },
+            ...(prev.gymExerciseLog || []),
+          ]
+        : (prev.gymExerciseLog || []);
+
+      return {
+        ...prev,
+        gymVisits: [
+          { id: Date.now(), date: today },
+          ...(prev.gymVisits || []),
+        ],
+        gymExerciseLog: snapshot,
+      };
+    });
   };
+
+  // Build a name → weight-history map from the overload log. Names are
+  // normalized so casing/whitespace differences don't fragment the series.
+  const overloadHistory = (() => {
+    const map = {};
+    const log = state.gymExerciseLog || [];
+    // Walk oldest → newest so each name's array ends up chronological.
+    const sorted = [...log].sort((a, b) => a.date.localeCompare(b.date));
+    for (const entry of sorted) {
+      for (const ex of entry.exercises || []) {
+        const key = (ex.name || "").trim().toLowerCase();
+        if (!key) continue;
+        const weight = Number(ex.weight);
+        if (!Number.isFinite(weight) || weight <= 0) continue;
+        if (!map[key]) map[key] = [];
+        map[key].push({ date: entry.date, weight });
+      }
+    }
+    return map;
+  })();
 
   const currentExercises = state.gymExercises?.[selectedDay] || [];
   const currentSplit = state.gymSplit?.[selectedDay] || "";
@@ -265,48 +312,113 @@ export function GymPage({ state, setState }) {
         </AnimatePresence>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          {currentExercises.map((e, idx) => (
-            <motion.div
-              key={e.id}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: idx * 0.05 }}
-              style={{
-                background: "var(--card)",
-                backdropFilter: "blur(12px)",
-                borderRadius: "16px",
-                padding: "16px",
-                border: "1px solid var(--border)",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <div>
-                <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--text)" }}>{e.name}</div>
-                <div style={{ display: "flex", gap: "12px", marginTop: "4px" }}>
-                  <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-                    <span style={{ color: "var(--text)", fontWeight: 600 }}>{e.sets}</span> sets
+          {currentExercises.map((e, idx) => {
+            // Pull historical weights for this exercise. Show last 3 progress
+            // points + the current prescribed weight, deduped so back-to-back
+            // identical sessions render as "225 → 230" not "225 → 225 → 230".
+            const key = (e.name || "").trim().toLowerCase();
+            const history = overloadHistory[key] || [];
+            const histWeights = history.map((h) => h.weight);
+            const currentWeight = Number(e.weight);
+            const series = Number.isFinite(currentWeight) && currentWeight > 0
+              ? [...histWeights, currentWeight]
+              : histWeights;
+            // Dedupe consecutive equal values.
+            const deduped = series.filter((w, i, arr) => i === 0 || w !== arr[i - 1]);
+            // Show at most the last 4 points so the trend stays glanceable.
+            const trend = deduped.slice(-4);
+            const trendDelta = trend.length >= 2 ? trend[trend.length - 1] - trend[0] : 0;
+            const trendColor = trendDelta > 0 ? "#34D399" : trendDelta < 0 ? "#F87171" : "var(--text-faint)";
+
+            return (
+              <motion.div
+                key={e.id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.05 }}
+                style={{
+                  background: "var(--card)",
+                  backdropFilter: "blur(12px)",
+                  borderRadius: "16px",
+                  padding: "16px",
+                  border: "1px solid var(--border)",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--text)" }}>{e.name}</div>
+                    <div style={{ display: "flex", gap: "12px", marginTop: "4px" }}>
+                      <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                        <span style={{ color: "var(--text)", fontWeight: 600 }}>{e.sets}</span> sets
+                      </div>
+                      <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                        <span style={{ color: "var(--text)", fontWeight: 600 }}>{e.reps}</span> reps
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-                    <span style={{ color: "var(--text)", fontWeight: 600 }}>{e.reps}</span> reps
+                  <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontSize: "18px", fontWeight: 800, color: "#FBBF24" }}>{e.weight}</div>
+                      <div style={{ fontSize: "9px", color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>LOAD (LBS)</div>
+                    </div>
+                    <button
+                      onClick={() => removeExercise(e.id)}
+                      style={{ background: "none", border: "none", color: "var(--text-faint)", cursor: "pointer", fontSize: "20px" }}
+                    >
+                      ×
+                    </button>
                   </div>
                 </div>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: "18px", fontWeight: 800, color: "#FBBF24" }}>{e.weight}</div>
-                  <div style={{ fontSize: "9px", color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>LOAD (LBS)</div>
-                </div>
-                <button
-                  onClick={() => removeExercise(e.id)}
-                  style={{ background: "none", border: "none", color: "var(--text-faint)", cursor: "pointer", fontSize: "20px" }}
-                >
-                  ×
-                </button>
-              </div>
-            </motion.div>
-          ))}
+
+                {/* Progressive overload trend — only shown once a real history
+                    exists (≥2 deduped points), otherwise the row collapses
+                    so unused exercises don't gain decorative chrome. */}
+                {trend.length >= 2 && (
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    marginTop: "12px",
+                    paddingTop: "10px",
+                    borderTop: "1px solid var(--border)",
+                  }}>
+                    <div style={{
+                      fontSize: "9px",
+                      fontFamily: "var(--font-mono)",
+                      color: "var(--text-faint)",
+                      letterSpacing: "0.1em",
+                      fontWeight: 700,
+                      flexShrink: 0,
+                    }}>
+                      OVERLOAD
+                    </div>
+                    <div style={{
+                      flex: 1,
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "12px",
+                      color: "var(--text-muted)",
+                      letterSpacing: "0.02em",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}>
+                      {trend.join(" → ")}
+                    </div>
+                    <div style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "11px",
+                      fontWeight: 800,
+                      color: trendColor,
+                      flexShrink: 0,
+                    }}>
+                      {trendDelta > 0 ? "▲ +" : trendDelta < 0 ? "▼ −" : "•"}
+                      {trendDelta !== 0 ? Math.abs(trendDelta) : ""}
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            );
+          })}
           {currentExercises.length === 0 && (
             <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-faint)", fontSize: "14px" }}>
               No exercises added for {selectedDay}.

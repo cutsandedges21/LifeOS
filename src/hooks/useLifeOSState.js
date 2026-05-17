@@ -66,6 +66,24 @@ const INITIAL_STATE = {
   netWorthHigh: 0,
   // ISO date the Overseer proactively nudged the user today (one nudge/day).
   proactiveNudgeShown: "",
+  // ── 1-line daily journal ────────────────────────────────────────────
+  // Append-only log of one entry per day: { date, text }. Today's entry is
+  // editable; past entries are read-only (UI-enforced). Fed into Overseer
+  // context so it can reference what the user said yesterday/recently.
+  journalEntries: [],
+  // ── Progressive overload log ────────────────────────────────────────
+  // Snapshot of `gymExercises[day]` written whenever the user logs a gym
+  // visit. Schema: { id, date, dayOfWeek, exercises: [{ name, weight, sets, reps }] }.
+  // Read by GymPage to render per-exercise trend strings like "225 → 230 → 235".
+  gymExerciseLog: [],
+  // ── Notifications ───────────────────────────────────────────────────
+  // User opt-in for the daily Overseer reminder + renewal nudges.
+  // Permission state itself lives in Notification.permission; this gate
+  // controls whether we *try* to use it.
+  notificationsEnabled: false,
+  // ISO date we last surfaced a "sub renews soon" notification, deduped by
+  // sub id → date to avoid daily re-spam.
+  subRenewalNotified: {},
 };
 
 export const useLifeOSState = () => {

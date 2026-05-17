@@ -4,6 +4,7 @@ import { BusinessCard, GlassCard } from "./GlassComponents.jsx";
 import { Input, Button, SectionLabel, Select } from "./UI.jsx";
 import { Sparkline } from "./Sparkline.jsx";
 import { lastNSnapshots } from "../utils/snapshots.js";
+import { upcomingRenewals } from "../utils/notifications.js";
 import { fmt$ } from "../utils/formatters.js";
 
 const TXN_CATEGORIES = [
@@ -752,6 +753,10 @@ export function FinancesPage({ state, setState }) {
           </div>
         </div>
 
+        {/* Renewing-in-next-7-days callout. Only renders when there's something
+            to nag about — the user shouldn't see empty chrome on a quiet week. */}
+        <UpcomingRenewalsBlock subs={subs} />
+
         <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
           {subs.map((s) => (
             <div
@@ -1113,6 +1118,101 @@ export function FinancesPage({ state, setState }) {
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+// Surfaces any subscription renewing in the next 7 days. Each row shows the
+// human label ("Tomorrow", "in 3 days", etc.) so the user can scan quickly
+// instead of mentally diffing dates. Renders nothing when there's no urgency.
+function UpcomingRenewalsBlock({ subs }) {
+  const upcoming = upcomingRenewals(subs, 7);
+  if (upcoming.length === 0) return null;
+
+  const totalDue = upcoming.reduce((s, u) => s + Number(u.cost || 0), 0);
+
+  return (
+    <div style={{
+      marginBottom: "20px",
+      padding: "14px",
+      borderRadius: "14px",
+      background: "rgba(248, 113, 113, 0.06)",
+      border: "1px solid rgba(248, 113, 113, 0.25)",
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+        <div style={{
+          fontSize: "10px",
+          fontFamily: "var(--font-mono)",
+          color: "#F87171",
+          fontWeight: 800,
+          letterSpacing: "0.12em",
+        }}>
+          ⚠ RENEWING IN 7 DAYS
+        </div>
+        <div style={{
+          fontSize: "12px",
+          fontFamily: "var(--font-mono)",
+          color: "#F87171",
+          fontWeight: 800,
+        }}>
+          ${totalDue.toFixed(2)}
+        </div>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+        {upcoming.map((sub) => {
+          const whenLabel =
+            sub.daysUntil === 0 ? "Today" :
+            sub.daysUntil === 1 ? "Tomorrow" :
+            `in ${sub.daysUntil} days`;
+          return (
+            <div
+              key={sub.id}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "8px 10px",
+                background: "rgba(0,0,0,0.15)",
+                borderRadius: "10px",
+              }}
+            >
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{
+                  fontSize: "13px",
+                  fontWeight: 700,
+                  color: "var(--text)",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}>
+                  {sub.name}
+                </div>
+                <div style={{
+                  fontSize: "10px",
+                  color: sub.daysUntil <= 1 ? "#F87171" : "var(--text-faint)",
+                  fontFamily: "var(--font-mono)",
+                  letterSpacing: "0.05em",
+                  marginTop: "2px",
+                  fontWeight: sub.daysUntil <= 1 ? 700 : 500,
+                }}>
+                  {whenLabel.toUpperCase()} · {sub.renews}
+                </div>
+              </div>
+              <div style={{
+                fontSize: "14px",
+                fontWeight: 800,
+                color: "var(--text)",
+                fontFamily: "var(--font-mono)",
+                marginLeft: "10px",
+                flexShrink: 0,
+              }}>
+                ${Number(sub.cost || 0).toFixed(2)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
