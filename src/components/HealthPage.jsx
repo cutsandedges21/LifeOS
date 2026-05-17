@@ -2,11 +2,13 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { GlassCard, MetricCard } from "./GlassComponents.jsx";
 import { Input, SectionLabel, Button } from "./UI.jsx";
-import { 
-  calculateSleepScore, 
+import { Sparkline } from "./Sparkline.jsx";
+import { lastNSnapshots } from "../utils/snapshots.js";
+import {
+  calculateSleepScore,
   calculateSleepHours,
-  getWeeklyRestPercent, 
-  getCurrentWeekSleep 
+  getWeeklyRestPercent,
+  getCurrentWeekSleep
 } from "../utils/formatters.js";
 
 export function HealthPage({ state, setState }) {
@@ -55,6 +57,15 @@ export function HealthPage({ state, setState }) {
 
   // Data for the Peak Curve visualization (Current Week Mon-Sun)
   const curvePoints = getCurrentWeekSleep(entries);
+
+  // 30-day sleep trend pulled from snapshot history.
+  const sleepHistory = lastNSnapshots(state.historySnapshots, 30).map((s) => s.sleep);
+  const sleepAvg30 = sleepHistory.filter((v) => v > 0).length
+    ? Math.round(
+        sleepHistory.filter((v) => v > 0).reduce((a, b) => a + b, 0) /
+          sleepHistory.filter((v) => v > 0).length
+      )
+    : 0;
 
   return (
     <div style={{ padding: "0 clamp(14px, 4.5vw, 20px)" }}>
@@ -129,6 +140,25 @@ export function HealthPage({ state, setState }) {
           </Button>
         </GlassCard>
       </div>
+
+      {/* 30-day sleep trend */}
+      <GlassCard style={{ marginTop: "24px", padding: "20px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+          <SectionLabel accent="#34D399" style={{ marginBottom: 0 }}>30-DAY SLEEP TREND</SectionLabel>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "6px" }}>
+            <span style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "var(--text-faint)", letterSpacing: "0.1em" }}>AVG</span>
+            <span style={{ fontSize: "16px", fontWeight: 900, color: "#34D399" }}>{sleepAvg30}%</span>
+          </div>
+        </div>
+        <div style={{ width: "100%" }}>
+          <Sparkline data={sleepHistory} color="#34D399" width={320} height={60} strokeWidth={2} />
+        </div>
+        {sleepHistory.length < 7 && (
+          <div style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-faint)", marginTop: "8px", textAlign: "center", letterSpacing: "0.08em" }}>
+            BUILDING HISTORY · {sleepHistory.length} DAY{sleepHistory.length === 1 ? "" : "S"} LOGGED
+          </div>
+        )}
+      </GlassCard>
 
       {/* Peak Curve Visualization */}
       <GlassCard style={{ marginTop: "24px", padding: "20px", marginBottom: "40px" }}>

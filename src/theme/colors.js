@@ -74,8 +74,9 @@ export const typography = {
 // The "main"/brand-primary accent. Provided as both hex and rgb-triplet
 // so that rgba() composition can pick up the right channel via CSS var.
 const ACCENTS = {
-  dark:  { hex: "#7C6DFA", rgb: "124, 109, 250" }, // electric indigo-violet
-  light: { hex: "#F97316", rgb: "249, 115, 22"  }, // vibrant orange
+  dark:     { hex: "#7C6DFA", rgb: "124, 109, 250" }, // electric indigo-violet
+  light:    { hex: "#F97316", rgb: "249, 115, 22"  }, // vibrant orange
+  midnight: { hex: "#10B981", rgb: "16, 185, 129"  }, // deep emerald
 };
 
 // ── Page tints (subtle per-page overlay) — only "main" flips ─────────
@@ -96,12 +97,21 @@ const pageTints = {
     brand:    "rgba(34, 211, 238, 0.06)",
     settings: "rgba(107, 114, 128, 0.06)",
   },
+  midnight: {
+    main:     "rgba(16, 185, 129, 0.08)",
+    finances: "rgba(52, 211, 153, 0.06)",
+    health:   "rgba(248, 113, 113, 0.06)",
+    gym:      "rgba(251, 191, 36, 0.06)",
+    brand:    "rgba(34, 211, 238, 0.06)",
+    settings: "rgba(107, 114, 128, 0.06)",
+  },
 };
 
 // ── Page accent maps (per theme) ──────────────────────────────────────
 const pageAccents = {
-  dark:  { main: ACCENTS.dark.hex,  ...sharedPageAccents },
-  light: { main: ACCENTS.light.hex, ...sharedPageAccents },
+  dark:     { main: ACCENTS.dark.hex,     ...sharedPageAccents },
+  light:    { main: ACCENTS.light.hex,    ...sharedPageAccents },
+  midnight: { main: ACCENTS.midnight.hex, ...sharedPageAccents },
 };
 
 // ── Full Theme Objects ────────────────────────────────────────────────
@@ -135,6 +145,20 @@ export const lightColors = {
   pageTints:     pageTints.light,
 };
 
+export const midnightColors = {
+  ...status,
+  background:    "#03060B",
+  card:          "rgba(16, 185, 129, 0.04)",
+  input:         "rgba(16, 185, 129, 0.06)",
+  border:        "rgba(16, 185, 129, 0.18)",
+  text:          "#E8FFF4",
+  textMuted:     "rgba(232, 255, 244, 0.55)",
+  accent:        ACCENTS.midnight.hex,
+  accentRgb:     ACCENTS.midnight.rgb,
+  pageAccents:   pageAccents.midnight,
+  pageTints:     pageTints.midnight,
+};
+
 // ── Theme → CSS variable bag ──────────────────────────────────────────
 // Returns a flat { '--bg': '#…', '--text': '#…', ... } map for the chosen
 // theme. App.jsx writes these onto document.documentElement.style on mount
@@ -166,6 +190,24 @@ export function cssVarsForTheme(themeName) {
       "--accent-main":      ACCENTS.light.hex,
       "--accent-main-rgb":  ACCENTS.light.rgb,
       "--orb-opacity":      "0.15",
+    };
+  }
+  if (themeName === "midnight") {
+    return {
+      "--bg":               "#03060B",
+      "--text":             "#E8FFF4",
+      "--text-muted":       "rgba(232, 255, 244, 0.55)",
+      "--text-faint":       "rgba(232, 255, 244, 0.40)",
+      "--card":             "rgba(16, 185, 129, 0.05)",
+      "--card-mid":         "rgba(16, 185, 129, 0.08)",
+      "--card-high":        "rgba(16, 185, 129, 0.13)",
+      "--input":            "rgba(16, 185, 129, 0.06)",
+      "--border":           "rgba(16, 185, 129, 0.18)",
+      "--border-high":      "rgba(16, 185, 129, 0.30)",
+      "--shadow":           "0 8px 32px rgba(0, 30, 20, 0.55), inset 0 1px 0 rgba(16, 185, 129, 0.10)",
+      "--accent-main":      ACCENTS.midnight.hex,
+      "--accent-main-rgb":  ACCENTS.midnight.rgb,
+      "--orb-opacity":      "0.32",
     };
   }
   // dark (default)

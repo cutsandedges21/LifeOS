@@ -27,7 +27,9 @@
       "mcp__plugin_context7_context7__resolve-library-id",
       "mcp__plugin_context7_context7__query-docs",
       "Bash(git -C \"C:\\\\Users\\\\sport\\\\OneDrive\\\\Documents\\\\CodingPersonal\\\\lifeos\" add docs/superpowers/specs/2026-05-15-menu-overseer-theme-design.md)",
-      "Bash(git -C 'C:\\\\Users\\\\sport\\\\OneDrive\\\\Documents\\\\CodingPersonal\\\\lifeos' commit -m ' *)"
+      "Bash(git -C 'C:\\\\Users\\\\sport\\\\OneDrive\\\\Documents\\\\CodingPersonal\\\\lifeos' commit -m ' *)",
+      "Bash(npx vite *)",
+      "mcp__plugin_playwright_playwright__browser_click"
     ]
   }
 }

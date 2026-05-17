@@ -60,3 +60,12 @@ main * { max-width: 100%; }
     font-size: 10px !important;
   }
 }
+
+/* Weekly review stats: 4-up at desktop width is fine, but on phones the
+   NET Δ value crowds the right edge. Fall back to a 2×2 grid on narrow
+   viewports so each cell has enough room for a $-value with sign. */
+@media (max-width: 400px) {
+  .weekly-review-stats {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}

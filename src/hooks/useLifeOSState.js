@@ -56,6 +56,16 @@ const INITIAL_STATE = {
   lastStreakCheck: "",
   lastGoalsReset: "",
   lastOverseerReset: "",
+  // Daily snapshot ring buffer — see src/utils/snapshots.js. Powers all trend
+  // charts and the weekly review card.
+  historySnapshots: [],
+  // Map of celebration-key → ISO date last fired. Prevents the same milestone
+  // (e.g. 7-day streak) from re-celebrating once dismissed.
+  celebrationsShown: {},
+  // Highest net worth ever recorded — drives the "new high" celebration.
+  netWorthHigh: 0,
+  // ISO date the Overseer proactively nudged the user today (one nudge/day).
+  proactiveNudgeShown: "",
 };
 
 export const useLifeOSState = () => {

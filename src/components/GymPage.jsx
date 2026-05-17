@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GlassCard, SectionHeader } from "./GlassComponents.jsx";
 import { Input, Button } from "./UI.jsx";
+import { lastNSnapshots } from "../utils/snapshots.js";
 import { getTodayDay } from "../utils/formatters.js";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -87,8 +88,66 @@ export function GymPage({ state, setState }) {
   const skippedToday = (state.gymSkips || []).some((s) => s.date === todayISO());
   const visitedToday = (state.gymVisits || []).some((v) => v.date === todayISO());
 
+  // 14-day attendance history pulled from snapshots. Each cell is binary
+  // (went / didn't), rendered as a row of small bars so patterns are obvious
+  // at a glance.
+  const attendance14 = lastNSnapshots(state.historySnapshots, 14);
+  const hitCount = attendance14.filter((s) => s.gymWent).length;
+
   return (
     <div style={{ padding: "0 clamp(14px, 4.5vw, 20px)" }}>
+      {/* Streak summary + 14-day attendance row */}
+      <GlassCard style={{ padding: "18px 20px", marginBottom: "16px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+          <div>
+            <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "var(--text-faint)", letterSpacing: "0.12em", fontWeight: 700, marginBottom: "4px" }}>
+              CURRENT STREAK
+            </div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: "6px" }}>
+              <div style={{ fontSize: "32px", fontWeight: 900, color: "#FBBF24", letterSpacing: "-0.03em", lineHeight: 1 }}>
+                {state.streak}
+              </div>
+              <div style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: 700 }}>days</div>
+            </div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "var(--text-faint)", letterSpacing: "0.12em", fontWeight: 700, marginBottom: "4px" }}>
+              LAST 14
+            </div>
+            <div style={{ fontSize: "20px", fontWeight: 900, color: "var(--text)", letterSpacing: "-0.02em", lineHeight: 1 }}>
+              {hitCount}<span style={{ color: "var(--text-faint)", fontSize: "14px" }}>/{attendance14.length || 14}</span>
+            </div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: "3px", alignItems: "flex-end", height: "28px" }}>
+          {attendance14.length === 0 ? (
+            // Empty-state placeholder: 14 faint slots so the layout doesn't jump.
+            Array.from({ length: 14 }).map((_, i) => (
+              <div key={i} style={{ flex: 1, height: "8px", background: "var(--card)", border: "1px dashed var(--border)", borderRadius: "3px" }} />
+            ))
+          ) : (
+            attendance14.map((s, i) => (
+              <div
+                key={s.date}
+                title={`${s.date} — ${s.gymWent ? "Hit" : "Missed"}`}
+                style={{
+                  flex: 1,
+                  height: s.gymWent ? "26px" : "8px",
+                  background: s.gymWent
+                    ? "linear-gradient(180deg, #FBBF24, #F59E0B)"
+                    : "rgba(248, 113, 113, 0.18)",
+                  border: s.gymWent ? "1px solid rgba(251, 191, 36, 0.5)" : "1px solid rgba(248, 113, 113, 0.25)",
+                  borderRadius: "3px",
+                  boxShadow: s.gymWent ? "0 0 6px rgba(251, 191, 36, 0.35)" : "none",
+                  alignSelf: "flex-end",
+                  opacity: i === attendance14.length - 1 ? 1 : 0.85,
+                }}
+              />
+            ))
+          )}
+        </div>
+      </GlassCard>
+
       {/* Day Selector */}
       <GlassCard style={{ padding: "16px", marginBottom: "16px" }} glow="#FBBF24">
         <div className="gym-days" style={{ display: "flex", justifyContent: "space-between", gap: "4px" }}>

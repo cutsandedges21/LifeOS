@@ -7,6 +7,8 @@ import {
   HeroSection,
 } from "./GlassComponents.jsx";
 import { SectionLabel, Input, Button } from "./UI.jsx";
+import { TrendsCard, WeeklyReviewCard } from "./Insights.jsx";
+import { computeNetWorth } from "../utils/snapshots.js";
 import { dayStr, timeStr } from "../utils/formatters.js";
 
 export function MainPage({
@@ -17,6 +19,7 @@ export function MainPage({
   sendMsg,
   chatRef,
   greeting,
+  overseerCap = 3,
 }) {
   const [newGoal, setNewGoal] = useState("");
   const [editingGoalId, setEditingGoalId] = useState(null);
@@ -188,6 +191,15 @@ export function MainPage({
         }}
       />
 
+      {/* Trends + Weekly Review — both read from state.historySnapshots */}
+      <TrendsCard
+        snapshots={state.historySnapshots}
+        streak={state.streak}
+        currentSleep={state.whoop?.sleep}
+        currentNet={computeNetWorth(state)}
+      />
+      <WeeklyReviewCard snapshots={state.historySnapshots} />
+
       {/* Timeline Section */}
       <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
         <SectionLabel accent="var(--accent-main)">TODAY'S FLOW</SectionLabel>
@@ -252,9 +264,9 @@ export function MainPage({
             <div style={{ fontWeight: 800, fontSize: "15px", display: "flex", alignItems: "center", gap: "6px" }}>
               Overseer
               <span style={{ display: "inline-block", marginLeft: "8px", fontSize: "11px", color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>
-                {state.overseerMessageCount}/3
+                {state.overseerMessageCount}/{overseerCap}
               </span>
-              <span style={{ display: "block", width: "6px", height: "6px", borderRadius: "50%", background: state.overseerMessageCount >= 3 ? "#EF4444" : "#34D399", boxShadow: `0 0 8px ${state.overseerMessageCount >= 3 ? "#EF4444" : "#34D399"}` }} />
+              <span style={{ display: "block", width: "6px", height: "6px", borderRadius: "50%", background: state.overseerMessageCount >= overseerCap ? "#EF4444" : "#34D399", boxShadow: `0 0 8px ${state.overseerMessageCount >= overseerCap ? "#EF4444" : "#34D399"}` }} />
             </div>
             <div style={{ fontSize: "11px", color: "var(--text-faint)", fontWeight: 500 }}>
               AI Accountability Agent
@@ -335,12 +347,12 @@ export function MainPage({
             value={state.overseerInput}
             onChange={(e) => setState((prev) => ({ ...prev, overseerInput: e.target.value }))}
             onKeyDown={(e) => e.key === "Enter" && sendMsg()}
-            placeholder={state.overseerMessageCount >= 3 ? "Message limit reached today. Come back tomorrow to speak with Overseer" : "Message Overseer"}
+            placeholder={state.overseerMessageCount >= overseerCap ? "Message limit reached today. Come back tomorrow to speak with Overseer" : "Message Overseer"}
             style={{
               flex: 1,
               background: "none",
               border: "none",
-              color: state.overseerMessageCount >= 3 ? "var(--text-faint)" : "var(--text)",
+              color: state.overseerMessageCount >= overseerCap ? "var(--text-faint)" : "var(--text)",
               fontSize: "14px",
               fontFamily: "inherit",
               outline: "none",
@@ -348,20 +360,20 @@ export function MainPage({
           />
           <motion.button
             onClick={sendMsg}
-            disabled={overseerLoading || state.overseerMessageCount >= 3}
+            disabled={overseerLoading || state.overseerMessageCount >= overseerCap}
             whileTap={{ scale: 0.9 }}
             style={{
               width: "36px",
               height: "36px",
               borderRadius: "12px",
-              background: state.overseerMessageCount >= 3 ? "var(--text-faint)" : "var(--accent-main)",
+              background: state.overseerMessageCount >= overseerCap ? "var(--text-faint)" : "var(--accent-main)",
               border: "none",
-              color: state.overseerMessageCount >= 3 ? "var(--text)" : "#fff",
+              color: state.overseerMessageCount >= overseerCap ? "var(--text)" : "#fff",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               cursor: "pointer",
-              opacity: (overseerLoading || state.overseerMessageCount >= 3) ? 0.5 : 1,
+              opacity: (overseerLoading || state.overseerMessageCount >= overseerCap) ? 0.5 : 1,
               boxShadow: "0 4px 12px rgba(var(--accent-main-rgb), 0.3)",
             }}
           >

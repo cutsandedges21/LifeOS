@@ -2,6 +2,8 @@ import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { BusinessCard, GlassCard } from "./GlassComponents.jsx";
 import { Input, Button, SectionLabel, Select } from "./UI.jsx";
+import { Sparkline } from "./Sparkline.jsx";
+import { lastNSnapshots } from "../utils/snapshots.js";
 import { fmt$ } from "../utils/formatters.js";
 
 const TXN_CATEGORIES = [
@@ -238,6 +240,10 @@ export function FinancesPage({ state, setState }) {
   const allTimeExpense = transactions.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount || 0), 0);
   const allTimeNet     = allTimeIncome - allTimeExpense;
 
+  // 30-day net worth trend, sourced from daily snapshots written by App.jsx.
+  const netSeries = lastNSnapshots(state.historySnapshots, 30).map((s) => s.netWorth);
+  const netDelta30 = netSeries.length >= 2 ? netSeries[netSeries.length - 1] - netSeries[0] : 0;
+
   return (
     <div style={{ padding: "0 clamp(14px, 4.5vw, 20px)" }}>
       {/* ── ALL-TIME STATS ────────────────────────────────────────── */}
@@ -282,6 +288,31 @@ export function FinancesPage({ state, setState }) {
           </div>
 
         </div>
+      </GlassCard>
+
+      {/* ── NET WORTH TREND ───────────────────────────────────────── */}
+      <GlassCard style={{ padding: "18px 20px 16px", marginBottom: "16px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+          <SectionLabel accent="var(--accent-main)" style={{ marginBottom: 0 }}>NET WORTH · 30-DAY</SectionLabel>
+          <div
+            style={{
+              fontSize: "11px",
+              fontFamily: "var(--font-mono)",
+              fontWeight: 800,
+              color: netDelta30 >= 0 ? "#34D399" : "#F87171",
+            }}
+          >
+            {netDelta30 >= 0 ? "▲ +" : "▼ −"}{fmt$(Math.abs(netDelta30))}
+          </div>
+        </div>
+        <div style={{ width: "100%" }}>
+          <Sparkline data={netSeries} color="var(--accent-main)" width={320} height={56} strokeWidth={2} />
+        </div>
+        {netSeries.length < 7 && (
+          <div style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-faint)", marginTop: "8px", textAlign: "center", letterSpacing: "0.08em" }}>
+            BUILDING HISTORY · {netSeries.length} DAY{netSeries.length === 1 ? "" : "S"} TRACKED
+          </div>
+        )}
       </GlassCard>
 
       {/* ── INCOME VS EXPENSE CHART ───────────────────────────────── */}

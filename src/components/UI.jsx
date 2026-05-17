@@ -14,12 +14,13 @@ const G = {
 const spring = { type: "spring", stiffness: 420, damping: 32 };
 
 // ── SectionLabel (mono uppercase with accent bar) ─────────────────────
-export const SectionLabel = ({ children, icon, accent = "var(--accent-main)" }) => (
+export const SectionLabel = ({ children, icon, accent = "var(--accent-main)", style = {} }) => (
   <div style={{
     display: "flex",
     alignItems: "center",
     gap: "8px",
     marginBottom: "14px",
+    ...style,
   }}>
     <span
       style={{

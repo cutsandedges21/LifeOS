@@ -1,6 +1,7 @@
 import {
   darkColors,
   lightColors,
+  midnightColors,
   spacing,
   borderRadius,
   typography,
@@ -10,8 +11,9 @@ import {
 } from "./colors.js";
 
 export const themes = {
-  dark:  { colors: darkColors,  spacing, borderRadius, typography },
-  light: { colors: lightColors, spacing, borderRadius, typography },
+  dark:     { colors: darkColors,     spacing, borderRadius, typography },
+  light:    { colors: lightColors,    spacing, borderRadius, typography },
+  midnight: { colors: midnightColors, spacing, borderRadius, typography },
 };
 
 export const defaultTheme = "dark";

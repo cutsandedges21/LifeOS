@@ -8,8 +8,15 @@ import { HealthPage } from "./components/HealthPage.jsx";
 import { GymPage } from "./components/GymPage.jsx";
 import { AnimatedBackground } from "./components/AnimatedBackground.jsx";
 import { CircleMenu } from "./components/CircleMenu.jsx";
+import { Celebration } from "./components/Celebration.jsx";
 import { getPageAccent, getPageTint, cssVarsForTheme } from "./theme/index.js";
 import { dayStr, timeStr, getTodayDay } from "./utils/formatters.js";
+import {
+  buildTodaySnapshot,
+  upsertSnapshot,
+  snapshotsEqual,
+  computeNetWorth,
+} from "./utils/snapshots.js";
 
 const GREETINGS = [
   "Let's lock in,",
@@ -155,6 +162,9 @@ export default function LifeOS() {
   const [time, setTime] = useState(new Date());
   const [overseerLoading, setOverseerLoading] = useState(false);
   const [greeting, setGreeting] = useState(GREETINGS[0]);
+  // Active celebration event (one at a time). Set by the detection effect
+  // below; cleared by Celebration's auto-dismiss or user tap.
+  const [celebration, setCelebration] = useState(null);
   const chatRef = useRef(null);
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
@@ -240,15 +250,157 @@ export default function LifeOS() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, time.toDateString()]);
 
+  // Dynamic Overseer message cap. Default 3/day; relaxes to 10 when the user
+  // is clearly slipping (broken streak, poor recovery, or any missed goal
+  // today) — those are exactly the moments where talking to the coach more
+  // is the helpful thing, not a punishment.
+  const isSlipping =
+    state.streak === 0 ||
+    (state.whoop?.recovery > 0 && state.whoop.recovery < 40) ||
+    (state.goals || []).some((g) => g.missed);
+  const overseerCap = isSlipping ? 10 : 3;
+
+  // ─── Daily snapshot upsert ─────────────────────────────────────────────
+  // Today's row is rewritten on every relevant state change so trend charts
+  // stay live; past days are frozen (we never touch them after the date
+  // rolls over). Short-circuits via snapshotsEqual to avoid render loops.
+  useEffect(() => {
+    if (!isLoaded) return;
+    const snap = buildTodaySnapshot(state);
+    const existing = (state.historySnapshots || []).find((s) => s.date === snap.date);
+    if (snapshotsEqual(existing, snap)) return;
+    setState((prev) => ({
+      ...prev,
+      historySnapshots: upsertSnapshot(prev.historySnapshots, snap),
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    isLoaded,
+    state.streak,
+    state.sleepEntries,
+    state.gymVisits,
+    state.goals,
+    state.finances?.transactions,
+    time.toDateString(),
+  ]);
+
+  // ─── Celebration detection ─────────────────────────────────────────────
+  // Fires once per qualifying event; dedupes by writing celebrationsShown[key]
+  // so the same milestone doesn't re-trigger on every render. Streak milestone
+  // dedupe is keyed by ISO date so streaks that drop and re-hit can re-fire.
+  useEffect(() => {
+    if (!isLoaded || celebration) return;
+    const today = todayISO();
+    const shown = state.celebrationsShown || {};
+
+    // Streak milestones — biggest one first so we don't celebrate 7 right
+    // before celebrating 30.
+    const MILESTONES = [365, 200, 100, 60, 30, 14, 7];
+    for (const m of MILESTONES) {
+      const key = `streak${m}`;
+      if (state.streak >= m && shown[key] !== today) {
+        setCelebration({
+          emoji: "🔥",
+          label: `${m}-DAY STREAK`,
+          title: `${m} days in a row!`,
+          message: `You've shown up ${m} days straight. That's not luck — that's identity.`,
+          color: m >= 100 ? "#A855F7" : m >= 30 ? "#FBBF24" : "#10B981",
+        });
+        setState((p) => ({
+          ...p,
+          celebrationsShown: { ...(p.celebrationsShown || {}), [key]: today },
+        }));
+        return;
+      }
+    }
+
+    // Perfect day — all goals done (require at least 3 to feel earned).
+    const allGoalsKey = `allGoals_${today}`;
+    const goals = state.goals || [];
+    if (goals.length >= 3 && goals.every((g) => g.done) && !shown[allGoalsKey]) {
+      setCelebration({
+        emoji: "✅",
+        label: "PERFECT DAY",
+        title: "All goals crushed",
+        message: `You went ${goals.length}-for-${goals.length} today. Now rest — you earned it.`,
+        color: "#22D3EE",
+      });
+      setState((p) => ({
+        ...p,
+        celebrationsShown: { ...(p.celebrationsShown || {}), [allGoalsKey]: today },
+      }));
+      return;
+    }
+
+    // New net worth high — only celebrate after a baseline exists, so the
+    // user's first transaction doesn't fire a "new record" popup.
+    const nw = computeNetWorth(state);
+    const prevHigh = state.netWorthHigh || 0;
+    if (nw > prevHigh && prevHigh > 0 && nw >= 100) {
+      setCelebration({
+        emoji: "📈",
+        label: "NEW NET WORTH HIGH",
+        title: `$${nw.toLocaleString()}`,
+        message: `Highest net worth on record. Keep stacking.`,
+        color: "#34D399",
+      });
+      setState((p) => ({ ...p, netWorthHigh: nw }));
+      return;
+    }
+
+    // Silently update the high-water mark when it grows but doesn't qualify
+    // for a celebration (first-ever positive value, sub-$100 amounts).
+    if (nw > prevHigh) {
+      setState((p) => ({ ...p, netWorthHigh: nw }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    isLoaded,
+    state.streak,
+    state.goals,
+    state.finances?.transactions,
+    celebration,
+  ]);
+
+  // ─── Proactive Overseer nudge ──────────────────────────────────────────
+  // After 6pm on workout days, if the user hasn't logged a gym visit or skip,
+  // the Overseer drops a single message into the log. Once per day max.
+  useEffect(() => {
+    if (!isLoaded) return;
+    const today = todayISO();
+    if (state.proactiveNudgeShown === today) return;
+    if (time.getHours() < 18) return;
+
+    const todayDay = getTodayDay();
+    const workoutToday = state.gymSplit?.[todayDay];
+    if (!workoutToday || /^\s*rest\s*$/i.test(workoutToday)) return;
+
+    const visited = (state.gymVisits || []).some((v) => v.date === today);
+    const skipped = (state.gymSkips || []).some((s) => s.date === today);
+    if (visited || skipped) return;
+
+    setState((p) => ({
+      ...p,
+      overseerLog: [
+        ...(p.overseerLog || []),
+        {
+          role: "ai",
+          text: `It's past 6pm and you haven't logged today's ${workoutToday} session. What's the move — go now, or own the skip?`,
+        },
+      ],
+      proactiveNudgeShown: today,
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, time.getHours(), state.proactiveNudgeShown]);
+
 
   // Overseer send
   const sendMsg = async (msgOverride) => {
     const msg = (typeof msgOverride === "string" ? msgOverride : state.overseerInput).trim();
     if (!msg || overseerLoading) return;
 
-    // Check if user has reached daily limit
-    if (state.overseerMessageCount >= 3) {
-      // Don't send message if limit reached
+    // Daily cap — relaxes when the user is slipping (see overseerCap above).
+    if (state.overseerMessageCount >= overseerCap) {
       return;
     }
 
@@ -295,7 +447,12 @@ export default function LifeOS() {
   // Brand-primary hex literal for the current theme — used in places where
   // a CSS var won't work (e.g. CircleMenu interpolates color into a hex+alpha
   // box-shadow string like `${color}80`).
-  const accentMainHex = (state.theme || "dark") === "light" ? "#F97316" : "#7C6DFA";
+  const ACCENT_HEX_BY_THEME = {
+    dark:     "#7C6DFA",
+    light:    "#F97316",
+    midnight: "#10B981",
+  };
+  const accentMainHex = ACCENT_HEX_BY_THEME[state.theme || "dark"] || ACCENT_HEX_BY_THEME.dark;
   const pageAccents = {
     main: accentMainHex,
     finances: "#34D399",
@@ -446,6 +603,7 @@ export default function LifeOS() {
                 sendMsg={sendMsg}
                 chatRef={chatRef}
                 greeting={greeting}
+                overseerCap={overseerCap}
               />
             )}
             {tab === "finances" && <FinancesPage state={state} setState={setState} />}
@@ -462,6 +620,10 @@ export default function LifeOS() {
           </motion.div>
         </AnimatePresence>
       </main>
+
+      {/* Celebration overlay — fires for streak milestones, perfect days,
+          and new net worth highs. See celebration detection effect above. */}
+      <Celebration event={celebration} onDismiss={() => setCelebration(null)} />
 
       {/* Bottom Nav - CircleMenu */}
       <CircleMenu
@@ -480,12 +642,14 @@ export default function LifeOS() {
   );
 }
 
-// Two-card theme picker. Each card uses its own theme's accent + bg as a
-// preview swatch so the user sees exactly what they're switching to.
+// Three-card theme picker. Each card paints itself with its own theme's
+// accent + bg as a live preview swatch so the user sees exactly what they're
+// switching to. Stacks on narrow screens via auto-fit grid.
 function AppearanceCard({ theme, onChange }) {
   const options = [
-    { id: "dark",  label: "Dark",  accent: "#7C6DFA", bg: "#080810", text: "#F8FAFF" },
-    { id: "light", label: "Light", accent: "#F97316", bg: "#FAFAF7", text: "#1A1A1F" },
+    { id: "dark",     label: "Dark",     accent: "#7C6DFA", bg: "#080810", text: "#F8FAFF", tagline: "Deep space + indigo glow" },
+    { id: "light",    label: "Light",    accent: "#F97316", bg: "#FAFAF7", text: "#1A1A1F", tagline: "Soft white + vibrant orange" },
+    { id: "midnight", label: "Midnight", accent: "#10B981", bg: "#03060B", text: "#E8FFF4", tagline: "Pure black + emerald CRT" },
   ];
   return (
     <div
@@ -501,7 +665,7 @@ function AppearanceCard({ theme, onChange }) {
       <div style={{ fontSize: "11px", fontWeight: 700, marginBottom: "16px", color: "var(--text-faint)", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
         APPEARANCE
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "10px" }}>
         {options.map((opt) => {
           const selected = theme === opt.id;
           return (
@@ -531,7 +695,7 @@ function AppearanceCard({ theme, onChange }) {
                 )}
               </div>
               <div style={{ fontSize: "11px", opacity: 0.65 }}>
-                {opt.id === "dark" ? "Deep space + indigo glow" : "Soft white + vibrant orange"}
+                {opt.tagline}
               </div>
             </button>
           );
@@ -758,7 +922,7 @@ function SettingsPage({ state, setState, resetState }) {
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           {[
             {
-              accent: accentMainHex,
+              accent: "var(--accent-main)",
               label: "HOME",
               title: "Daily flow + Overseer",
               body: "See your day at a glance. Check off tasks, hit your habits, and chat with the Overseer — a brutally honest AI coach that knows your full context.",
@@ -810,36 +974,6 @@ function SettingsPage({ state, setState, resetState }) {
           ))}
         </div>
 
-        {/* Compute RGB from accentMainHex for background */}
-        {(() => {
-          const hex = accentMainHex;
-          const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
-          hex = hex.replace(shorthandRegex, (m, r, g, b) => {
-            return r + r + g + g + b + b;
-          });
-          const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-          const rgb = result ? {
-            r: parseInt(result[1], 16),
-            g: parseInt(result[2], 16),
-            b: parseInt(result[3], 16)
-          } : null;
-          return rgb;
-        })()}
-
-        <div style={{
-          marginTop: "20px",
-          padding: "14px",
-          background: `rgba(${rgb ? `${rgb.r}, ${rgb.g}, ${rgb.b}` : "124, 109, 250"}, 0.08)`,
-          border: `1px solid rgba(${rgb ? `${rgb.r}, ${rgb.g}, ${rgb.b}` : "124, 109, 250"}, 0.2)`,
-          borderRadius: "16px",
-        }}>
-          <div style={{ fontSize: "10px", fontWeight: 700, color: accentMainHex, fontFamily: "var(--font-mono)", letterSpacing: "0.1em", marginBottom: "6px" }}>
-            TIP
-          </div>
-          <div style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.5 }}>
-            Use the circle menu at the bottom to switch pages. Everything you log is saved locally — no account, no cloud, just you and your data.
-          </div>
-        </div>
       </div>
 
       {/* Danger Zone */}
