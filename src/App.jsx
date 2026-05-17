@@ -9,8 +9,9 @@ import { GymPage } from "./components/GymPage.jsx";
 import { AnimatedBackground } from "./components/AnimatedBackground.jsx";
 import { CircleMenu } from "./components/CircleMenu.jsx";
 import { Celebration } from "./components/Celebration.jsx";
+import { Clock } from "./components/Clock.jsx";
 import { getPageAccent, getPageTint, cssVarsForTheme } from "./theme/index.js";
-import { dayStr, timeStr, getTodayDay } from "./utils/formatters.js";
+import { dayStr, getTodayDay } from "./utils/formatters.js";
 import {
   buildTodaySnapshot,
   upsertSnapshot,
@@ -183,8 +184,13 @@ export default function LifeOS() {
     }
   }, [tab]);
 
+  // Background ticker. Used only for coarse-grained day/hour rollover
+  // detection and the day-progress %, neither of which needs sub-minute
+  // precision. The live seconds display lives in its own <Clock /> below
+  // so it doesn't drag the whole tree into a per-second re-render —
+  // that was the cause of mobile scroll stutter.
   useEffect(() => {
-    const t = setInterval(() => setTime(new Date()), 1000);
+    const t = setInterval(() => setTime(new Date()), 30000);
     return () => clearInterval(t);
   }, []);
 
@@ -560,9 +566,15 @@ export default function LifeOS() {
           </div>
 
           <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
-            <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text)", opacity: 0.8, fontFamily: "var(--font-mono)" }}>
-              {timeStr()}
-            </span>
+            <Clock
+              style={{
+                fontSize: "12px",
+                fontWeight: 600,
+                color: "var(--text)",
+                opacity: 0.8,
+                fontFamily: "var(--font-mono)",
+              }}
+            />
           </div>
         </motion.div>
       </div>

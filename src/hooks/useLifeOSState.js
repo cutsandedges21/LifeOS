@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { storage, STORAGE_KEYS } from "../utils/storage.js";
 
 const INITIAL_STATE = {
@@ -76,15 +76,46 @@ export const useLifeOSState = () => {
 
   const [isLoaded, setIsLoaded] = useState(false);
 
+  // Latest state mirrored into a ref so the lifecycle flush handlers below
+  // can persist current data without re-binding listeners on every change.
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
   useEffect(() => {
     setIsLoaded(true);
   }, []);
 
+  // Debounced persistence. Rapid back-to-back state updates (snapshot upsert
+  // → celebration shown stamp → netWorthHigh, etc.) used to fire a separate
+  // synchronous localStorage write per render, which on mobile blocks the
+  // main thread for 10–30ms each and visibly stalls touch scrolling.
+  // Coalescing into a single write after 400ms of quiet eliminates the jank
+  // without risking real data loss — the lifecycle flush below covers the
+  // edge case where the user backgrounds the app mid-debounce.
   useEffect(() => {
-    if (isLoaded) {
+    if (!isLoaded) return;
+    const t = setTimeout(() => {
       storage.set(STORAGE_KEYS.STATE, state);
-    }
+    }, 400);
+    return () => clearTimeout(t);
   }, [state, isLoaded]);
+
+  // Lifecycle flush: write immediately if the tab is being hidden, closed,
+  // or refreshed. Listeners are bound once and read latest state via the
+  // ref above, so this doesn't reattach on every state change.
+  useEffect(() => {
+    if (!isLoaded) return;
+    const flush = () => storage.set(STORAGE_KEYS.STATE, stateRef.current);
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [isLoaded]);
 
   const resetState = () => {
     setState(INITIAL_STATE);
