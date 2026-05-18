@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { GlassCard, MetricCard } from "./GlassComponents.jsx";
-import { Input, SectionLabel, Button } from "./UI.jsx";
+import { SectionLabel, Button } from "./UI.jsx";
 import { Sparkline } from "./Sparkline.jsx";
 import { lastNSnapshots } from "../utils/snapshots.js";
 import {
@@ -113,36 +113,43 @@ export function HealthPage({ state, setState }) {
       {/* Sleep Entry Section */}
       <div style={{ marginTop: "24px" }}>
         <SectionLabel accent="var(--accent-main)">LOG PREVIOUS NIGHT'S SLEEP</SectionLabel>
-        <GlassCard style={{ padding: "20px" }}>
-          {/* sleep-time-grid: `1fr` is shorthand for `minmax(auto, 1fr)`, and
-              `auto` is min-content — iOS's native time input has a chunky
-              intrinsic min-width (12-hour text + picker indicator at 16px
-              font) that blows the column past the GlassCard's inner width.
-              `minmax(0, 1fr)` forces the column to shrink to fit. The
-              responsive.css media query also stacks to a single column on
-              narrow phones for breathing room. */}
+        <GlassCard
+          style={{
+            // Tighter side padding so the card can pull in slightly from
+            // the right while still feeling intentional, and explicit
+            // width caps so the iOS native time-picker's intrinsic
+            // min-width can't push the card past the page's right edge.
+            padding: "20px 16px",
+            width: "100%",
+            maxWidth: "100%",
+            boxSizing: "border-box",
+          }}
+        >
+          {/* Bare-input time fields, stacked. The shared Input component has
+              a backdrop-filter + an outset focus box-shadow ring; both
+              interact badly with iOS's native time picker UI and visually
+              push the field beyond the GlassCard's right edge. Inlining
+              the inputs with plain styling and a single-column layout
+              gives each field the full GlassCard inner width so the
+              native picker has room and nothing escapes the card. */}
           <div
-            className="sleep-time-grid"
             style={{
-              display: "grid",
-              gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
-              gap: "12px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "14px",
               marginBottom: "16px",
+              minWidth: 0,
             }}
           >
-            <Input
-              label="Went to Bed"
-              type="time"
+            <TimeField
+              label="WENT TO BED"
               value={bedtime}
               onChange={(e) => setBedtime(e.target.value)}
-              style={{ marginBottom: 0, minWidth: 0 }}
             />
-            <Input
-              label="Woke Up"
-              type="time"
+            <TimeField
+              label="WOKE UP"
               value={wakeTime}
               onChange={(e) => setWakeTime(e.target.value)}
-              style={{ marginBottom: 0, minWidth: 0 }}
             />
           </div>
           
@@ -219,6 +226,53 @@ export function HealthPage({ state, setState }) {
           })}
         </div>
       </GlassCard>
+    </div>
+  );
+}
+
+// Bare time field — deliberately plain styling, no backdrop-filter and no
+// outset focus ring, so iOS's native time picker has room and the field
+// never visually escapes the GlassCard that wraps it.
+function TimeField({ label, value, onChange }) {
+  return (
+    <div style={{ minWidth: 0, width: "100%" }}>
+      <div
+        style={{
+          fontSize: "10px",
+          color: "var(--text-faint)",
+          fontFamily: "'DM Mono', monospace",
+          letterSpacing: "0.12em",
+          marginBottom: "6px",
+        }}
+      >
+        {label}
+      </div>
+      <input
+        type="time"
+        value={value}
+        onChange={onChange}
+        style={{
+          // Match the SUBMIT SLEEP LOG button's width logic: width:100%
+          // with box-sizing:border-box, so the field fills the GlassCard's
+          // content area exactly the same way the button below does.
+          // minWidth:0 prevents iOS's native time picker from forcing the
+          // input back to its intrinsic min-content width.
+          display: "block",
+          boxSizing: "border-box",
+          width: "89%",
+          maxWidth: "100%",
+          minWidth: 0,
+          background: "var(--card)",
+          border: "1px solid var(--border)",
+          borderRadius: "12px",
+          padding: "12px 14px",
+          color: "var(--text)",
+          fontSize: "14px",
+          fontFamily: "inherit",
+          minHeight: "44px",
+          outline: "none",
+        }}
+      />
     </div>
   );
 }
