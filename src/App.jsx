@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLifeOSState } from "./hooks/useLifeOSState.js";
-import { MainPage } from "./components/MainPage.jsx";
+import { MainPage, OVERSEER_SYSTEM_PROMPT } from "./components/MainPage.jsx";
 import { FinancesPage } from "./components/FinancesPage.jsx";
 import { BrandPage } from "./components/BrandPage.jsx";
 import { HealthPage } from "./components/HealthPage.jsx";
@@ -45,20 +45,22 @@ const GREETINGS = [
 
 // Overseer chat — calls our own /api/overseer serverless function,
 // which holds the Gemini API key server-side. The key never reaches
-// the browser bundle.
-async function askOverseer(messages, ctx, retries = 2) {
+// the browser bundle. The system prompt is defined in MainPage.jsx
+// (OVERSEER_SYSTEM_PROMPT) and sent through with each call so the
+// instructions live next to the UI they power.
+async function askOverseer(messages, ctx, systemPrompt, retries = 2) {
   try {
     const res = await fetch("/api/overseer", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages, ctx }),
+      body: JSON.stringify({ messages, ctx, systemPrompt }),
     });
 
     if (!res.ok) {
       if (res.status === 429 && retries > 0) {
         console.warn("Rate limited, retrying in 5s...");
         await new Promise((r) => setTimeout(r, 5000));
-        return askOverseer(messages, ctx, retries - 1);
+        return askOverseer(messages, ctx, systemPrompt, retries - 1);
       }
       let detail = `HTTP ${res.status}`;
       try {
@@ -269,15 +271,9 @@ export default function LifeOS() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, time.toDateString()]);
 
-  // Dynamic Overseer message cap. Default 3/day; relaxes to 10 when the user
-  // is clearly slipping (broken streak, poor recovery, or any missed goal
-  // today) — those are exactly the moments where talking to the coach more
-  // is the helpful thing, not a punishment.
-  const isSlipping =
-    state.streak === 0 ||
-    (state.whoop?.recovery > 0 && state.whoop.recovery < 40) ||
-    (state.goals || []).some((g) => g.missed);
-  const overseerCap = isSlipping ? 10 : 3;
+  // Overseer message cap. Hard limit, no flexibility — 3 messages per
+  // user per day, full stop. Resets at midnight via the effect above.
+  const overseerCap = 3;
 
   // ─── Daily snapshot upsert ─────────────────────────────────────────────
   // Today's row is rewritten on every relevant state change so trend charts
@@ -570,7 +566,7 @@ export default function LifeOS() {
       userMsg,
     ];
 
-    const reply = await askOverseer(apiMessages, ctx);
+    const reply = await askOverseer(apiMessages, ctx, OVERSEER_SYSTEM_PROMPT);
     setState((prev) => ({
       ...prev,
       overseerLog: [...prev.overseerLog, { role: "ai", text: reply }],

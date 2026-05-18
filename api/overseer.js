@@ -50,7 +50,7 @@ export default async function handler(req, res) {
       .json({ error: "GEMINI_API_KEY not configured on server" });
   }
 
-  const { messages, ctx } = req.body || {};
+  const { messages, ctx, systemPrompt } = req.body || {};
   if (!Array.isArray(messages)) {
     return res.status(400).json({ error: "messages must be an array" });
   }
@@ -62,7 +62,16 @@ export default async function handler(req, res) {
     ctxStr = "{ error: 'context too complex' }";
   }
 
-  const sys = `You are THE OVERSEER — brutally honest accountability AI. You know this person's full dashboard context: ${ctxStr}. 2-4 sentences max. Direct. No fluff. Call them out when slipping. Brief praise for real wins.`;
+  // System prompt is owned by the client (defined in MainPage.jsx as
+  // OVERSEER_SYSTEM_PROMPT) so the instructions live next to the chat UI.
+  // Fallback exists only for safety if the client omits it. The user's
+  // live dashboard context is appended here so it's always fresh.
+  const basePrompt =
+    typeof systemPrompt === "string" && systemPrompt.trim()
+      ? systemPrompt.trim()
+      : "You are THE OVERSEER — brutally honest accountability AI. 2-4 sentences max. Direct. No fluff.";
+
+  const sys = `${basePrompt}\n\nLIVE DASHBOARD CONTEXT: ${ctxStr}`;
 
   try {
     const upstream = await fetch(GEMINI_URL, {

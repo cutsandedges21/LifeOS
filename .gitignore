@@ -4,3 +4,5 @@ dist
 .env
 .superpowers/
 .playwright-mcp/
+.vercel
+.env*.local
