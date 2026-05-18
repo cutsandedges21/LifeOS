@@ -1,18 +1,19 @@
 import { createClient } from "@supabase/supabase-js";
 
-// Null-safe Supabase client.
+// Supabase client.
 //
-// The app is offline-first: localStorage is the source of truth and works
-// with zero backend. Cloud sync is opt-in — when VITE_SUPABASE_URL +
-// VITE_SUPABASE_ANON_KEY are present in .env we create a real client and
-// the Account page lets the user sign in to enable cross-device sync.
+// These two values are SAFE to commit to a public repo:
+//   - The URL is a public endpoint.
+//   - The anon / publishable key is the client-side key Supabase issues
+//     specifically to be shipped in browsers. Data security comes from
+//     the Row Level Security policies in SETUP_SQL below, not from the
+//     key being secret.
 //
-// When env vars are missing, getSupabase() returns null and every caller
-// short-circuits cleanly (no errors, no flicker). This means the app keeps
-// working perfectly for the "I haven't set up Supabase yet" user.
+// Do NOT put the service_role key here — that one is a real secret and
+// must stay on a server.
 
-const url = import.meta.env.VITE_SUPABASE_URL;
-const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const url = "https://xomxqoqcyxrilrhvpole.supabase.co";
+const anonKey = "sb_publishable_RjehWu3QtU-Exn-3gV1ufA_3xI4pfUb";
 
 let _client = null;
 

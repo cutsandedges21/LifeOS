@@ -120,30 +120,8 @@ export function AccountPage({
               </a>
             </li>
             <li>
-              In <strong>.env</strong>, add:
-              <pre
-                style={{
-                  marginTop: "8px",
-                  marginBottom: "8px",
-                  padding: "10px 12px",
-                  background: "var(--card)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "10px",
-                  fontSize: "11px",
-                  fontFamily: "var(--font-mono)",
-                  color: "var(--text)",
-                  overflow: "auto",
-                  whiteSpace: "pre-wrap",
-                }}
-              >
-{`VITE_SUPABASE_URL="https://YOUR-PROJECT.supabase.co"
-VITE_SUPABASE_ANON_KEY="YOUR-ANON-KEY"`}
-              </pre>
-            </li>
-            <li>
               In Supabase → SQL editor, paste and run the snippet below.
             </li>
-            <li>Restart the dev server.</li>
           </ol>
 
           <button
@@ -566,7 +544,7 @@ function LocalOnlyCard() {
         }}
       >
         You can keep using LifeOS without an account — everything works,
-        nothing leaves the device. Sign in later when you're ready to sync.
+        nothing leaves the device. Sign in later when you're ready to sync across devices.
       </div>
     </GlassCard>
   );
