@@ -224,10 +224,12 @@ export function MainPage({
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "10px",
+            gap: "8px",
             background: "var(--card)",
-            borderRadius: "16px",
-            padding: "6px 6px 6px 14px",
+            // Pill radius matches the 56px container height (44 button + 6+6 pad)
+            // so the pill reads as one rounded shape rather than a box w/ button.
+            borderRadius: "28px",
+            padding: "6px 6px 6px 18px",
             border: "1px solid var(--border)",
           }}
         >
@@ -244,6 +246,7 @@ export function MainPage({
             }
             style={{
               flex: 1,
+              minWidth: 0,
               background: "none",
               border: "none",
               color:
@@ -253,6 +256,11 @@ export function MainPage({
               fontSize: "14px",
               fontFamily: "inherit",
               outline: "none",
+              // Match the button's height so the input area and the send
+              // button read as a single pill rather than a small text line
+              // with an oversized button stuck to its right edge.
+              height: "44px",
+              padding: 0,
             }}
           />
           <motion.button
@@ -268,7 +276,7 @@ export function MainPage({
               width: "44px",
               height: "44px",
               flexShrink: 0,
-              borderRadius: "12px",
+              borderRadius: "50%",
               background:
                 state.overseerMessageCount >= overseerCap
                   ? "var(--text-faint)"
@@ -286,7 +294,10 @@ export function MainPage({
                 overseerLoading || state.overseerMessageCount >= overseerCap
                   ? 0.5
                   : 1,
-              boxShadow: "0 4px 12px rgba(var(--accent-main-rgb), 0.3)",
+              // No box-shadow: with only 6px of padding on the container, a
+              // soft drop shadow escapes the pill's bottom edge and reads as
+              // the button "coming out" of the text field. The accent fill
+              // is enough to make the button pop on its own.
               touchAction: "manipulation",
             }}
           >

@@ -114,24 +114,35 @@ export function HealthPage({ state, setState }) {
       <div style={{ marginTop: "24px" }}>
         <SectionLabel accent="var(--accent-main)">LOG PREVIOUS NIGHT'S SLEEP</SectionLabel>
         <GlassCard style={{ padding: "20px" }}>
-          {/* sleep-time-grid: stacks to a single column on narrow phones via
-              responsive.css. iOS forces 16px font on inputs and a 12-hour
-              "11:30 PM" with the picker indicator overflows the 1fr cell at
-              360px viewport. */}
-          <div className="sleep-time-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
+          {/* sleep-time-grid: `1fr` is shorthand for `minmax(auto, 1fr)`, and
+              `auto` is min-content — iOS's native time input has a chunky
+              intrinsic min-width (12-hour text + picker indicator at 16px
+              font) that blows the column past the GlassCard's inner width.
+              `minmax(0, 1fr)` forces the column to shrink to fit. The
+              responsive.css media query also stacks to a single column on
+              narrow phones for breathing room. */}
+          <div
+            className="sleep-time-grid"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+              gap: "12px",
+              marginBottom: "16px",
+            }}
+          >
             <Input
               label="Went to Bed"
               type="time"
               value={bedtime}
               onChange={(e) => setBedtime(e.target.value)}
-              style={{ marginBottom: 0 }}
+              style={{ marginBottom: 0, minWidth: 0 }}
             />
             <Input
               label="Woke Up"
               type="time"
               value={wakeTime}
               onChange={(e) => setWakeTime(e.target.value)}
-              style={{ marginBottom: 0 }}
+              style={{ marginBottom: 0, minWidth: 0 }}
             />
           </div>
           

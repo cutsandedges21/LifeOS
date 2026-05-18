@@ -72,10 +72,11 @@ main * { max-width: 100%; }
 
 /* Sleep page "Log previous night's sleep" time inputs.
    iOS forces 16px font on inputs (to prevent zoom on focus), and a
-   12-hour time string ("11:30 PM") plus the picker indicator overflows
-   the 1fr cell when two inputs sit side-by-side at phone widths. Stack
-   to one column on narrow viewports so each input gets the full width. */
-@media (max-width: 420px) {
+   12-hour time string ("11:30 PM") plus the picker indicator visually
+   crowds (and can overflow) the 1fr cell when two inputs sit side-by-side
+   at phone widths. Stack to one column across all common phones (incl.
+   iPhone Pro Max at 430px) so each input gets the full GlassCard width. */
+@media (max-width: 500px) {
   .sleep-time-grid {
     grid-template-columns: 1fr !important;
   }
