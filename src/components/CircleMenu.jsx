@@ -281,7 +281,11 @@ export function CircleMenu({ items, activeId, onSelect }) {
           display: "flex",
           alignItems: "flex-end",
           justifyContent: "center",
-          pointerEvents: "auto",
+          // pointer-events stay off on this wrapper so the invisible 250x177
+          // hitbox at bottom center doesn't swallow scroll/tap on the
+          // Overseer input and other bottom-of-page UI. The trigger button
+          // and (when open) the backdrop/items opt back into pointer events.
+          pointerEvents: "none",
         }}
       >
         {/* Backdrop dim + blur when open */}
@@ -314,7 +318,7 @@ export function CircleMenu({ items, activeId, onSelect }) {
         </AnimatePresence>
 
         {/* Trigger sits at bottom center */}
-        <div style={{ position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)" }}>
+        <div style={{ position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)", pointerEvents: "auto" }}>
           <MenuTrigger
             setIsOpen={setIsOpen}
             isOpen={isOpen}

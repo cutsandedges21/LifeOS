@@ -114,7 +114,11 @@ export function HealthPage({ state, setState }) {
       <div style={{ marginTop: "24px" }}>
         <SectionLabel accent="var(--accent-main)">LOG PREVIOUS NIGHT'S SLEEP</SectionLabel>
         <GlassCard style={{ padding: "20px" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
+          {/* sleep-time-grid: stacks to a single column on narrow phones via
+              responsive.css. iOS forces 16px font on inputs and a 12-hour
+              "11:30 PM" with the picker indicator overflows the 1fr cell at
+              360px viewport. */}
+          <div className="sleep-time-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
             <Input
               label="Went to Bed"
               type="time"

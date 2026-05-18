@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { GlassCard, HeroSection } from "./GlassComponents.jsx";
 import { SectionLabel } from "./UI.jsx";
@@ -60,9 +59,6 @@ export function MainPage({
         currentNet={computeNetWorth(state)}
       />
       <WeeklyReviewCard snapshots={state.historySnapshots} />
-
-      {/* 1-line daily journal */}
-      <JournalCard state={state} setState={setState} />
 
       {/* Overseer Chat */}
       <GlassCard style={{ marginTop: "24px", padding: "20px" }}>
@@ -260,14 +256,18 @@ export function MainPage({
             }}
           />
           <motion.button
-            onClick={sendMsg}
+            onClick={() => sendMsg()}
             disabled={
               overseerLoading || state.overseerMessageCount >= overseerCap
             }
             whileTap={{ scale: 0.9 }}
             style={{
-              width: "36px",
-              height: "36px",
+              // 44x44 hits Apple's HIG minimum tap target — the old 36x36
+              // was below that and felt unreliable on phones, especially
+              // sitting near the bottom of the page where thumbs are big.
+              width: "44px",
+              height: "44px",
+              flexShrink: 0,
               borderRadius: "12px",
               background:
                 state.overseerMessageCount >= overseerCap
@@ -287,6 +287,7 @@ export function MainPage({
                   ? 0.5
                   : 1,
               boxShadow: "0 4px 12px rgba(var(--accent-main-rgb), 0.3)",
+              touchAction: "manipulation",
             }}
           >
             <svg
@@ -465,167 +466,3 @@ function ProgressRow({ label, accent, done, total, pct }) {
   );
 }
 
-// One-line daily journal. Idea: a single sentence per day is low-friction
-// enough that the user will actually do it, and the Overseer gets meaningful
-// context ("yesterday you said you were drained — today you still showed up").
-//
-// Storage: state.journalEntries is an append-only array sorted oldest→newest.
-// Today's entry is mutable in place; past entries are display-only.
-function JournalCard({ state, setState }) {
-  const todayISO = new Date().toISOString().slice(0, 10);
-  const entries = state.journalEntries || [];
-  const todayEntry = entries.find((e) => e.date === todayISO);
-  const [draft, setDraft] = useState(todayEntry?.text || "");
-  const [saved, setSaved] = useState(Boolean(todayEntry));
-
-  // If state hydrates async (initial load), sync the draft once on mount.
-  useEffect(() => {
-    if (todayEntry && draft === "" && !saved) {
-      setDraft(todayEntry.text);
-      setSaved(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [todayEntry?.text]);
-
-  const handleSave = () => {
-    const text = draft.trim();
-    if (!text) return;
-    setState((p) => {
-      const list = p.journalEntries || [];
-      const others = list.filter((e) => e.date !== todayISO);
-      return {
-        ...p,
-        journalEntries: [...others, { date: todayISO, text }].sort((a, b) =>
-          a.date.localeCompare(b.date)
-        ),
-      };
-    });
-    setSaved(true);
-  };
-
-  // Past 3 entries (excluding today) for context preview. Keeps the card
-  // visually anchored without ballooning the page.
-  const recent = entries
-    .filter((e) => e.date !== todayISO)
-    .slice(-3)
-    .reverse();
-
-  return (
-    <GlassCard style={{ padding: "18px 18px 16px", marginBottom: "12px" }}>
-      <SectionLabel accent="var(--accent-main)">
-        DAILY JOURNAL · ONE LINE
-      </SectionLabel>
-
-      <div
-        style={{
-          display: "flex",
-          gap: "8px",
-          marginBottom: recent.length ? "14px" : 0,
-        }}
-      >
-        <input
-          value={draft}
-          onChange={(e) => {
-            setDraft(e.target.value);
-            if (saved) setSaved(false);
-          }}
-          onKeyDown={(e) => e.key === "Enter" && handleSave()}
-          placeholder="One sentence on today…"
-          maxLength={140}
-          style={{
-            flex: 1,
-            background: "var(--card)",
-            border: "1px solid var(--border)",
-            borderRadius: "12px",
-            padding: "10px 12px",
-            color: "var(--text)",
-            fontSize: "14px",
-            fontFamily: "inherit",
-            outline: "none",
-            minHeight: "42px",
-          }}
-        />
-        <button
-          onClick={handleSave}
-          disabled={!draft.trim() || (saved && draft === todayEntry?.text)}
-          style={{
-            padding: "0 16px",
-            borderRadius: "12px",
-            border: "1px solid rgba(var(--accent-main-rgb),0.4)",
-            background:
-              saved && draft === todayEntry?.text
-                ? "var(--card-mid)"
-                : "rgba(var(--accent-main-rgb),0.15)",
-            color:
-              saved && draft === todayEntry?.text
-                ? "var(--text-faint)"
-                : "var(--accent-main)",
-            fontWeight: 700,
-            fontSize: "12px",
-            cursor: !draft.trim() ? "not-allowed" : "pointer",
-            opacity: !draft.trim() ? 0.5 : 1,
-            fontFamily: "var(--font-mono)",
-            letterSpacing: "0.05em",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {saved && draft === todayEntry?.text ? "✓ SAVED" : "SAVE"}
-        </button>
-      </div>
-
-      {recent.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-          <div
-            style={{
-              fontSize: "9px",
-              fontFamily: "var(--font-mono)",
-              color: "var(--text-faint)",
-              letterSpacing: "0.12em",
-              marginBottom: "2px",
-              fontWeight: 700,
-            }}
-          >
-            RECENT
-          </div>
-          {recent.map((e) => (
-            <div
-              key={e.date}
-              style={{
-                display: "flex",
-                gap: "10px",
-                padding: "8px 10px",
-                background: "var(--card)",
-                borderRadius: "10px",
-                border: "1px solid var(--border)",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: "10px",
-                  fontFamily: "var(--font-mono)",
-                  color: "var(--text-faint)",
-                  letterSpacing: "0.05em",
-                  flexShrink: 0,
-                  paddingTop: "1px",
-                  minWidth: "62px",
-                }}
-              >
-                {e.date.slice(5).replace("-", "/")}
-              </div>
-              <div
-                style={{
-                  fontSize: "13px",
-                  color: "var(--text-muted)",
-                  lineHeight: 1.4,
-                  fontStyle: "italic",
-                }}
-              >
-                "{e.text}"
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </GlassCard>
-  );
-}
