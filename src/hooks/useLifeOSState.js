@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { storage, STORAGE_KEYS } from "../utils/storage.js";
+import { getSupabase } from "../utils/supabase.js";
+import { useAuth } from "./useAuth.js";
 
 const INITIAL_STATE = {
   user: "",
@@ -84,32 +86,114 @@ const INITIAL_STATE = {
   // ISO date we last surfaced a "sub renews soon" notification, deduped by
   // sub id → date to avoid daily re-spam.
   subRenewalNotified: {},
+  // ── Habits ──────────────────────────────────────────────────────────
+  // Binary daily habits separate from one-shot goals. A habit is something
+  // you should do every day (meditate, no alcohol, read) — different mental
+  // model than today's TODO list.
+  //   habits: [{ id, name, color, icon, createdAt }]
+  //   habitCompletions: { [habitId]: { [iso]: true } }
+  habits: [],
+  habitCompletions: {},
 };
 
+// Fields that should NOT be synced to the cloud. These are ephemeral UI state
+// or transient input fields where syncing across devices would feel wrong
+// (e.g. mid-typing a chat message on phone shouldn't appear on desktop).
+const EPHEMERAL_KEYS = new Set(["overseerInput"]);
+
+function stripEphemeral(state) {
+  const out = {};
+  for (const k of Object.keys(state)) {
+    if (!EPHEMERAL_KEYS.has(k)) out[k] = state[k];
+  }
+  return out;
+}
+
 export const useLifeOSState = () => {
+  const auth = useAuth();
   const [state, setState] = useState(() => {
     const saved = storage.get(STORAGE_KEYS.STATE);
     return saved ? { ...INITIAL_STATE, ...saved } : INITIAL_STATE;
   });
 
+  // isLoaded gates effects + UI: true once the local hydrate is done AND
+  // (if signed in) the initial cloud fetch has completed. This avoids the
+  // race where state.streak briefly shows 0 from local before cloud value
+  // arrives, causing a visible flicker.
   const [isLoaded, setIsLoaded] = useState(false);
+  // syncStatus surfaces in the Account page so the user can see what's
+  // happening: idle | pulling | syncing | error | offline
+  const [syncStatus, setSyncStatus] = useState("idle");
+  const [lastSyncedAt, setLastSyncedAt] = useState(null);
+  const [syncError, setSyncError] = useState(null);
 
   // Latest state mirrored into a ref so the lifecycle flush handlers below
   // can persist current data without re-binding listeners on every change.
   const stateRef = useRef(state);
   stateRef.current = state;
 
+  // Initial local hydrate completes immediately on first paint.
   useEffect(() => {
-    setIsLoaded(true);
-  }, []);
+    // Wait until auth status is known before flipping isLoaded — if a user
+    // is signed in, we want to pull cloud state first to avoid the local→cloud
+    // flicker. If they're anon, we're done.
+    if (auth.status === "loading") return;
+    if (auth.status === "anon") {
+      setIsLoaded(true);
+    }
+    // signed-in branch is handled by the cloud-pull effect below.
+  }, [auth.status]);
 
-  // Debounced persistence. Rapid back-to-back state updates (snapshot upsert
-  // → celebration shown stamp → netWorthHigh, etc.) used to fire a separate
-  // synchronous localStorage write per render, which on mobile blocks the
-  // main thread for 10–30ms each and visibly stalls touch scrolling.
-  // Coalescing into a single write after 400ms of quiet eliminates the jank
-  // without risking real data loss — the lifecycle flush below covers the
-  // edge case where the user backgrounds the app mid-debounce.
+  // ── Cloud pull on sign-in ────────────────────────────────────────────
+  // When a user signs in we fetch their cloud row. If it exists, cloud
+  // wins (it's the cross-device source of truth). If not, we'll seed the
+  // cloud row with current local state on the first push below.
+  useEffect(() => {
+    if (auth.status !== "signed-in" || !auth.user) return;
+    const supabase = getSupabase();
+    if (!supabase) return;
+
+    let cancelled = false;
+    setSyncStatus("pulling");
+    setSyncError(null);
+
+    supabase
+      .from("user_state")
+      .select("state, updated_at")
+      .eq("user_id", auth.user.id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) {
+          console.warn("[LifeOS] cloud pull failed:", error);
+          setSyncError(error.message);
+          setSyncStatus("error");
+          setIsLoaded(true);
+          return;
+        }
+        if (data?.state) {
+          // Merge: cloud wins, but spread INITIAL_STATE first so any
+          // newly-added fields not present in the saved row still resolve.
+          setState({ ...INITIAL_STATE, ...data.state });
+          setLastSyncedAt(data.updated_at || new Date().toISOString());
+        }
+        setSyncStatus("idle");
+        setIsLoaded(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [auth.status, auth.user?.id]);
+
+  // ── Debounced local persistence ──────────────────────────────────────
+  // Rapid back-to-back state updates (snapshot upsert → celebration shown
+  // stamp → netWorthHigh, etc.) used to fire a separate synchronous
+  // localStorage write per render, which on mobile blocks the main thread
+  // for 10–30ms each and visibly stalls touch scrolling. Coalescing into a
+  // single write after 400ms of quiet eliminates the jank without risking
+  // real data loss — the lifecycle flush below covers the edge case where
+  // the user backgrounds the app mid-debounce.
   useEffect(() => {
     if (!isLoaded) return;
     const t = setTimeout(() => {
@@ -117,6 +201,41 @@ export const useLifeOSState = () => {
     }, 400);
     return () => clearTimeout(t);
   }, [state, isLoaded]);
+
+  // ── Debounced cloud sync (when signed in) ────────────────────────────
+  // Mirrors the localStorage debounce but writes to Supabase. Skipped when
+  // signed out so anon users never hit the network.
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (auth.status !== "signed-in" || !auth.user) return;
+    const supabase = getSupabase();
+    if (!supabase) return;
+
+    const t = setTimeout(async () => {
+      setSyncStatus("syncing");
+      const { error } = await supabase
+        .from("user_state")
+        .upsert(
+          {
+            user_id: auth.user.id,
+            state: stripEphemeral(state),
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id" }
+        );
+      if (error) {
+        console.warn("[LifeOS] cloud sync failed:", error);
+        setSyncError(error.message);
+        setSyncStatus("error");
+      } else {
+        setSyncError(null);
+        setLastSyncedAt(new Date().toISOString());
+        setSyncStatus("idle");
+      }
+    }, 1500); // longer than local debounce — fewer network writes
+
+    return () => clearTimeout(t);
+  }, [state, isLoaded, auth.status, auth.user?.id]);
 
   // Lifecycle flush: write immediately if the tab is being hidden, closed,
   // or refreshed. Listeners are bound once and read latest state via the
@@ -144,5 +263,15 @@ export const useLifeOSState = () => {
     setState((prev) => ({ ...prev, ...updates }));
   };
 
-  return { state, setState, updateState, resetState, isLoaded };
+  return {
+    state,
+    setState,
+    updateState,
+    resetState,
+    isLoaded,
+    auth,
+    syncStatus,
+    lastSyncedAt,
+    syncError,
+  };
 };

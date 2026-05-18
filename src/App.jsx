@@ -6,6 +6,9 @@ import { FinancesPage } from "./components/FinancesPage.jsx";
 import { BrandPage } from "./components/BrandPage.jsx";
 import { HealthPage } from "./components/HealthPage.jsx";
 import { GymPage } from "./components/GymPage.jsx";
+import { HabitsPage } from "./components/HabitsPage.jsx";
+import { AccountPage } from "./components/AccountPage.jsx";
+import { PageSkeleton } from "./components/SkeletonLoader.jsx";
 import { AnimatedBackground } from "./components/AnimatedBackground.jsx";
 import { CircleMenu } from "./components/CircleMenu.jsx";
 import { Celebration } from "./components/Celebration.jsx";
@@ -137,6 +140,22 @@ const GymIcon = () => (
   </svg>
 );
 
+// Habits icon — circular check, distinct from goals and gym icons
+const HabitsIcon = () => (
+  <svg width="22" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+    <polyline points="22 4 12 14.01 9 11.01" />
+  </svg>
+);
+
+// Account / user silhouette — used for the Account page
+const AccountIcon = () => (
+  <svg width="22" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
+  </svg>
+);
+
 const SettingsIcon = () => (
   <svg width="22" height="30" viewBox="0 0 24 23" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.72v.18a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
@@ -169,7 +188,16 @@ function computeStreak(visits) {
 }
 
 export default function LifeOS() {
-  const { state, setState, resetState, isLoaded } = useLifeOSState();
+  const {
+    state,
+    setState,
+    resetState,
+    isLoaded,
+    auth,
+    syncStatus,
+    lastSyncedAt,
+    syncError,
+  } = useLifeOSState();
   const [tab, setTab] = useState("main");
   const [time, setTime] = useState(new Date());
   const [overseerLoading, setOverseerLoading] = useState(false);
@@ -430,26 +458,67 @@ export default function LifeOS() {
       minute: 0,
       onFire: () => {
         const goalsCt = (state.goals || []).length;
-        const body = goalsCt > 0
-          ? `${goalsCt} goal${goalsCt === 1 ? "" : "s"} on the board. Streak: ${state.streak}d. Lock in.`
-          : `Streak: ${state.streak}d. Set today's goals — what wins do you want?`;
-        showNotification("The Overseer", body, { tag: "lifeos-daily" });
+        // Habits-today summary — pulled at fire time so it reflects the
+        // latest state, not whatever was captured when the timer was armed.
+        const habitsTotal = (state.habits || []).length;
+        const todayIso = todayISO();
+        const habitsDone = (state.habits || []).filter(
+          (h) => state.habitCompletions?.[h.id]?.[todayIso]
+        ).length;
+
+        const dueSoon = upcomingRenewals(state.finances?.subs, 3);
+
+        const lines = [];
+        lines.push(`Streak: ${state.streak}d`);
+        if (habitsTotal > 0) lines.push(`Habits: ${habitsDone}/${habitsTotal}`);
+        if (goalsCt > 0) lines.push(`Goals: ${goalsCt} on board`);
+        else lines.push("Set today's goals");
+
+        // Add a renewal preview to the daily ping so the user sees the heads-up
+        // even if they miss the dedicated per-sub notification later in the day.
+        if (dueSoon.length > 0) {
+          const first = dueSoon[0];
+          const when =
+            first.daysUntil === 0
+              ? "today"
+              : first.daysUntil === 1
+                ? "tomorrow"
+                : `in ${first.daysUntil}d`;
+          if (dueSoon.length === 1) {
+            lines.push(`${first.name} renews ${when}`);
+          } else {
+            lines.push(`${dueSoon.length} subs renewing soon (${first.name} ${when})`);
+          }
+        }
+
+        showNotification("The Overseer", lines.join(" · "), {
+          tag: "lifeos-daily",
+        });
       },
     });
     return () => cancelDailyReminder();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded, state.notificationsEnabled, state.streak, state.goals?.length]);
+  }, [
+    isLoaded,
+    state.notificationsEnabled,
+    state.streak,
+    state.goals?.length,
+    state.habits?.length,
+    state.finances?.subs,
+  ]);
 
   // ─── Sub renewal notifier ──────────────────────────────────────────────
-  // Once per day per sub, fire a notification when renewal is within 24h.
-  // Dedupe via subRenewalNotified[subId] = ISO date.
+  // Once per day per sub, fire a notification when renewal is within the next
+  // 3 days — gives the user time to actually cancel/swap before the charge
+  // hits, not just a "good luck" heads-up on the day of. Dedupe via
+  // subRenewalNotified[subId] = ISO date.
   useEffect(() => {
     if (!isLoaded) return;
     if (!state.notificationsEnabled) return;
     if (notificationStatus() !== "granted") return;
 
     const today = todayISO();
-    const dueSoon = upcomingRenewals(state.finances?.subs, 1);
+    const dueSoon = upcomingRenewals(state.finances?.subs, 3);
     if (dueSoon.length === 0) return;
 
     const alreadySent = state.subRenewalNotified || {};
@@ -457,7 +526,12 @@ export default function LifeOS() {
 
     dueSoon.forEach((sub) => {
       if (alreadySent[sub.id] === today) return;
-      const when = sub.daysUntil === 0 ? "today" : "tomorrow";
+      const when =
+        sub.daysUntil === 0
+          ? "today"
+          : sub.daysUntil === 1
+            ? "tomorrow"
+            : `in ${sub.daysUntil} days`;
       showNotification(
         `${sub.name} renews ${when}`,
         `$${Number(sub.cost || 0).toFixed(2)} hitting your card on ${sub.renews}.`,
@@ -548,42 +622,13 @@ export default function LifeOS() {
     health: "#F87171",
     gym: "#FBBF24",
     brand: "#22D3EE",
+    habits: "#A855F7",
+    account: "#60A5FA",
     settings: "#94A3B8",
   };
 
   if (!isLoaded) {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "var(--bg)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "var(--text)",
-          fontFamily: "var(--font-sans)",
-        }}
-      >
-        {isMobile ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.8 }}
-            style={{ fontSize: "16px", fontWeight: 600, letterSpacing: "0.1em" }}
-          >
-            LIFEOS
-          </motion.div>
-        ) : (
-          <motion.div
-            animate={{ opacity: [0.4, 1, 0.4] }}
-            transition={{ duration: 1.5, repeat: Infinity }}
-            style={{ fontSize: "16px", fontWeight: 600, letterSpacing: "0.1em" }}
-          >
-            LIFEOS
-          </motion.div>
-        )}
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   return (
@@ -699,12 +744,23 @@ export default function LifeOS() {
                 chatRef={chatRef}
                 greeting={greeting}
                 overseerCap={overseerCap}
+                setTab={setTab}
               />
             )}
             {tab === "finances" && <FinancesPage state={state} setState={setState} />}
             {tab === "brand" && <BrandPage state={state} setState={setState} />}
             {tab === "health" && <HealthPage state={state} setState={setState} />}
             {tab === "gym" && <GymPage state={state} setState={setState} />}
+            {tab === "habits" && <HabitsPage state={state} setState={setState} />}
+            {tab === "account" && (
+              <AccountPage
+                state={state}
+                auth={auth}
+                syncStatus={syncStatus}
+                lastSyncedAt={lastSyncedAt}
+                syncError={syncError}
+              />
+            )}
             {tab === "settings" && (
               <SettingsPage
                 state={state}
@@ -720,7 +776,8 @@ export default function LifeOS() {
           and new net worth highs. See celebration detection effect above. */}
       <Celebration event={celebration} onDismiss={() => setCelebration(null)} />
 
-      {/* Bottom Nav - CircleMenu */}
+      {/* Bottom Nav - CircleMenu — 7 visible items keep Home at the apex
+          (middle index of an odd-length half-circle arc). */}
       <CircleMenu
         activeId={tab}
         onSelect={setTab}
@@ -728,7 +785,9 @@ export default function LifeOS() {
           { id: "health", label: "Sleep", icon: <ZzzIcon />, color: "#F87171", labelAbove: true, labelLeftSide: true },
           { id: "finances", label: "Finances", icon: <FinIcon />, color: "#34D399", labelAbove: true, labelLeftSide: true },
           { id: "brand", label: "Brand", icon: <BrandIcon />, color: "#22D3EE", hidden: true },
+          { id: "habits", label: "Habits", icon: <HabitsIcon />, color: pageAccents.habits, labelAbove: true, labelLeftSide: true },
           { id: "main", label: "Home", icon: <HomeIcon />, color: pageAccents.main, labelAbove: true },
+          { id: "account", label: "Account", icon: <AccountIcon />, color: pageAccents.account, labelAbove: true },
           { id: "gym", label: "Gym", icon: <GymIcon />, color: "#FBBF24", labelAbove: true },
           { id: "settings", label: "Settings", icon: <SettingsIcon />, color: "#94A3B8", labelAbove: true },
         ]}
@@ -826,7 +885,7 @@ function InstallAndNotificationsCard({ state, setState }) {
           </div>
         </div>
         <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "12px", lineHeight: 1.5 }}>
-          Get a 9am notification with today's streak + goal count, plus a heads-up the day before any subscription renews.
+          9am check-in with streak, habits, and goals — plus a 3-day heads-up before any subscription renews. Best results when LifeOS is installed to your home screen.
         </div>
         <button
           onClick={handleToggleNotifications}
