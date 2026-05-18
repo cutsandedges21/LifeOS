@@ -43,38 +43,16 @@ const GREETINGS = [
   "Consistency is key,",
 ];
 
-// Google Gemini API for Overseer
+// Overseer chat — calls our own /api/overseer serverless function,
+// which holds the Gemini API key server-side. The key never reaches
+// the browser bundle.
 async function askOverseer(messages, ctx, retries = 2) {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-
-  let ctxStr = "";
   try {
-    ctxStr = JSON.stringify(ctx);
-  } catch (e) {
-    ctxStr = "{ error: 'context too complex' }";
-  }
-
-  const sys = `You are THE OVERSEER — brutally honest accountability AI. You know this person's full dashboard context: ${ctxStr}. 2-4 sentences max. Direct. No fluff. Call them out when slipping. Brief praise for real wins.`;
-
-  try {
-    const res = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey,
-        },
-        body: JSON.stringify({
-          contents: messages.map((m) => ({
-            role: m.role === "ai" || m.role === "assistant" ? "model" : "user",
-            parts: [{ text: String(m.content ?? m.text ?? "") }],
-          })),
-          system_instruction: { parts: [{ text: sys }] },
-          generationConfig: { maxOutputTokens: 200, temperature: 0.7 },
-        }),
-      }
-    );
+    const res = await fetch("/api/overseer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages, ctx }),
+    });
 
     if (!res.ok) {
       if (res.status === 429 && retries > 0) {
@@ -85,7 +63,7 @@ async function askOverseer(messages, ctx, retries = 2) {
       let detail = `HTTP ${res.status}`;
       try {
         const errBody = await res.json();
-        if (errBody?.error?.message) detail = errBody.error.message;
+        if (errBody?.error) detail = errBody.error;
       } catch (_) {
         // body not JSON — keep status-only detail
       }
@@ -93,11 +71,7 @@ async function askOverseer(messages, ctx, retries = 2) {
     }
 
     const d = await res.json();
-    if (d.error) {
-      console.error("Gemini Error:", d.error);
-      return `Overseer Error: ${d.error.message}`;
-    }
-    return d.candidates?.[0]?.content?.parts?.[0]?.text ?? "…";
+    return d.text ?? "…";
   } catch (error) {
     console.error("Overseer API error:", error);
     return `Overseer offline: ${error.message || "unknown error"}`;
