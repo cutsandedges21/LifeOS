@@ -3,7 +3,7 @@ import { GlassCard, HeroSection } from "./GlassComponents.jsx";
 import { SectionLabel } from "./UI.jsx";
 import { TrendsCard, WeeklyReviewCard } from "./Insights.jsx";
 import { computeNetWorth } from "../utils/snapshots.js";
-import { dayStr } from "../utils/formatters.js";
+import { dayStr, todayISO } from "../utils/formatters.js";
 
 // ─── OVERSEER SYSTEM PROMPT ─────────────────────────────────────────────
 // The full identity + behavior contract sent to Gemini on every Overseer
@@ -51,8 +51,8 @@ export function MainPage({
 
   const habits = state.habits || [];
   const completions = state.habitCompletions || {};
-  const todayISO = new Date().toISOString().slice(0, 10);
-  const habitsDone = habits.filter((h) => completions[h.id]?.[todayISO]).length;
+  const todayIso = todayISO();
+  const habitsDone = habits.filter((h) => completions[h.id]?.[todayIso]).length;
   const habitsTotal = habits.length;
 
   return (

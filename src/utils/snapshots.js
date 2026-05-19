@@ -4,7 +4,7 @@
 // Today's snapshot is upserted on every relevant state change; past days are
 // frozen the moment the date rolls over.
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
+import { todayISO } from "./formatters.js";
 
 export function computeNetWorth(state) {
   const txns = state?.finances?.transactions || [];

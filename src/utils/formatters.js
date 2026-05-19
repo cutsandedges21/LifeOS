@@ -1,3 +1,17 @@
+// Local-date ISO. We deliberately do NOT use `toISOString().slice(0, 10)`
+// because that returns the UTC date — for anyone east of UTC, or even a
+// US user logging late at night, the UTC day rolls before midnight local
+// and breaks every "is this today?" check. Using local components keeps
+// the day boundary at the user's actual local midnight.
+export const isoFromDate = (d) => {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+export const todayISO = () => isoFromDate(new Date());
+
 // Formatters
 export const fmt$ = (n) =>
   new Intl.NumberFormat("en-US", {

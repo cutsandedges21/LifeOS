@@ -8,7 +8,7 @@ import {
 } from "framer-motion";
 import { GlassCard, TimelineItem } from "./GlassComponents.jsx";
 import { SectionLabel, Input, Button } from "./UI.jsx";
-import { dayStr, timeStr } from "../utils/formatters.js";
+import { dayStr, timeStr, todayISO, isoFromDate } from "../utils/formatters.js";
 
 // HabitsPage. Two stacked sections:
 //   1. HABITS    — binary daily check-offs with per-habit streaks + 14d grid.
@@ -19,7 +19,6 @@ import { dayStr, timeStr } from "../utils/formatters.js";
 // (same shape they always had — moving the UI here didn't change persistence).
 
 const ACCENT = "#A855F7"; // violet — distinct from existing page accents
-const todayISO = () => new Date().toISOString().slice(0, 10);
 
 // Recent N days as ISO date strings, oldest → newest. Used for the per-habit
 // grid so the rightmost square is always today.
@@ -30,7 +29,7 @@ function recentDays(n) {
   for (let i = n - 1; i >= 0; i--) {
     const dd = new Date(d);
     dd.setDate(d.getDate() - i);
-    days.push(dd.toISOString().slice(0, 10));
+    days.push(isoFromDate(dd));
   }
   return days;
 }
@@ -42,7 +41,7 @@ function habitStreak(forHabit) {
   const day = new Date();
   day.setHours(0, 0, 0, 0);
   while (true) {
-    const iso = day.toISOString().slice(0, 10);
+    const iso = isoFromDate(day);
     if (forHabit?.[iso]) {
       streak += 1;
       day.setDate(day.getDate() - 1);

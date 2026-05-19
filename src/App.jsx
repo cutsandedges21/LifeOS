@@ -14,7 +14,7 @@ import { CircleMenu } from "./components/CircleMenu.jsx";
 import { Celebration } from "./components/Celebration.jsx";
 import { Clock } from "./components/Clock.jsx";
 import { getPageAccent, getPageTint, cssVarsForTheme } from "./theme/index.js";
-import { dayStr, getTodayDay } from "./utils/formatters.js";
+import { dayStr, getTodayDay, todayISO, isoFromDate } from "./utils/formatters.js";
 import {
   buildTodaySnapshot,
   upsertSnapshot,
@@ -139,8 +139,6 @@ const SettingsIcon = () => (
   </svg>
 );
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
-
 // Streak = number of consecutive days ending today that have a gym visit.
 // Walking backward from today, count each day with a matching entry in
 // gymVisits[{date}]. The first gap (no visit) ends the streak. A skip counts
@@ -152,7 +150,7 @@ function computeStreak(visits) {
   day.setHours(0, 0, 0, 0);
 
   while (true) {
-    const iso = day.toISOString().slice(0, 10);
+    const iso = isoFromDate(day);
     if (visitDates.has(iso)) {
       streak += 1;
       day.setDate(day.getDate() - 1);
@@ -222,6 +220,28 @@ export default function LifeOS() {
       document.documentElement.style.setProperty(k, v);
     });
   }, [state.theme]);
+
+  // One-time migration. Earlier builds stored "today" as a UTC date
+  // (`new Date().toISOString().slice(0, 10)`), which silently broke every
+  // daily reset for anyone whose UTC date already rolled before their local
+  // midnight — overseer count stays at the cap, gym buttons keep saying
+  // "skipped today", habit grid doesn't open a fresh column. Clearing the
+  // three "last reset" stamps once forces the reset effects below to fire
+  // with the correct local date and unblocks the day. Stamped via
+  // `dateFormatVersion` so this only runs once per user.
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (state.dateFormatVersion === "local-v1") return;
+    setState((prev) => ({
+      ...prev,
+      lastGoalsReset: "",
+      lastOverseerReset: "",
+      lastStreakCheck: "",
+      overseerMessageCount: 0,
+      dateFormatVersion: "local-v1",
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded]);
 
   // Streak — recomputed from gymVisits whenever visits change or a new day starts.
   // Counts consecutive days ending today that have a visit. Missing a day
@@ -680,12 +700,20 @@ export default function LifeOS() {
       {/* Mini Health Bar Overlay — mirrors the 4 hero metrics: DAY, RECOVERY, STREAK, GOALS */}
       <div className="health-strip" style={{ paddingTop: "24px", paddingBottom: "16px" }}>
       <div style={{ padding: "0 20px", display: "flex", gap: "12px", alignItems: "center", overflowX: "auto", scrollbarWidth: "none" }}>
-        {[
-          { label: "DAY", val: `${pct}%`, color: "var(--accent-main)" },
-          { label: "SLEEP", val: `${state.whoop.sleep}%`, color: "#34D399" },
-          { label: "STREAK", val: `${state.streak}D`, color: "#FBBF24" },
-          { label: "GOALS", val: `${state.goals.filter(g => g.done).length}/${state.goals.length}`, color: "#22D3EE" },
-        ].map(({ label, val, color }) => (
+        {(() => {
+          const todayIso = todayISO();
+          const habits = state.habits || [];
+          const habitsDone = habits.filter(
+            (h) => state.habitCompletions?.[h.id]?.[todayIso]
+          ).length;
+          return [
+            { label: "DAY", val: `${pct}%`, color: "var(--accent-main)" },
+            { label: "SLEEP", val: `${state.whoop.sleep}%`, color: "#34D399" },
+            { label: "STREAK", val: `${state.streak}D`, color: "#FBBF24" },
+            { label: "HABITS", val: `${habitsDone}/${habits.length}`, color: "#A855F7" },
+            { label: "GOALS", val: `${state.goals.filter(g => g.done).length}/${state.goals.length}`, color: "#22D3EE" },
+          ];
+        })().map(({ label, val, color }) => (
           <div key={label} style={{ display: "flex", gap: "5px", alignItems: "center", background: "var(--card)", padding: "4px 10px", borderRadius: "20px", border: "1px solid var(--border)" }}>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--text-faint)", letterSpacing: "0.05em" }}>{label}</span>
             <span style={{ fontSize: "11px", fontWeight: 700, color }}>{val}</span>

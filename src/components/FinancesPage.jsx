@@ -5,15 +5,13 @@ import { Input, Button, SectionLabel, Select } from "./UI.jsx";
 import { Sparkline } from "./Sparkline.jsx";
 import { lastNSnapshots } from "../utils/snapshots.js";
 import { upcomingRenewals } from "../utils/notifications.js";
-import { fmt$ } from "../utils/formatters.js";
+import { fmt$, todayISO } from "../utils/formatters.js";
 
 const TXN_CATEGORIES = [
   "Salary", "Business", "Investment", "Freelance", "Gift",
   "Food", "Rent", "Transport", "Shopping", "Entertainment",
   "Health", "Education", "Subscription", "Other",
 ];
-
-const todayISO = () => new Date().toISOString().slice(0, 10);
 
 const monthKey = (iso) => {
   if (!iso) return "";
@@ -36,7 +34,6 @@ export function FinancesPage({ state, setState }) {
   const [showAddBusiness, setShowAddBusiness] = useState(false);
   const [showAddSub, setShowAddSub] = useState(false);
   const [showAddTxn, setShowAddTxn] = useState(false);
-  const [showAddBudget, setShowAddBudget] = useState(false);
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [txnFilter, setTxnFilter] = useState("all"); // all | income | expense
   const [celebratedGoal, setCelebratedGoal] = useState(null); // { name, color }
@@ -59,22 +56,15 @@ export function FinancesPage({ state, setState }) {
     date: todayISO(),
   });
 
-  const [newBudget, setNewBudget] = useState({
-    category: "Food",
-    limit: 0,
-    color: "var(--accent-main)",
-  });
-
   const [newGoal, setNewGoal] = useState({
     name: "",
     target: 0,
     saved: 0,
-    color: "#22D3EE",
+    color: "#FBBF24",
   });
 
   // Safely-accessed finance arrays (with old-state fallback)
   const transactions = state.finances.transactions || [];
-  const budgets = state.finances.budgets || [];
   const savingsGoals = state.finances.savingsGoals || [];
   const subs = state.finances.subs || [];
 
@@ -115,19 +105,6 @@ export function FinancesPage({ state, setState }) {
     setShowAddTxn(false);
   };
 
-  const addBudget = () => {
-    if (!newBudget.category.trim() || !newBudget.limit) return;
-    setState((prev) => ({
-      ...prev,
-      finances: {
-        ...prev.finances,
-        budgets: [...(prev.finances.budgets || []), { ...newBudget, limit: Number(newBudget.limit), id: Date.now() }],
-      },
-    }));
-    setNewBudget({ category: "Food", limit: 0, color: "var(--accent-main)" });
-    setShowAddBudget(false);
-  };
-
   const addGoal = () => {
     if (!newGoal.name.trim() || !newGoal.target) return;
     setState((prev) => ({
@@ -140,7 +117,7 @@ export function FinancesPage({ state, setState }) {
         ],
       },
     }));
-    setNewGoal({ name: "", target: 0, saved: 0, color: "#22D3EE" });
+    setNewGoal({ name: "", target: 0, saved: 0, color: "#FBBF24" });
     setShowAddGoal(false);
   };
 
@@ -158,11 +135,6 @@ export function FinancesPage({ state, setState }) {
   const removeTxn = (id) => setState((prev) => ({
     ...prev,
     finances: { ...prev.finances, transactions: (prev.finances.transactions || []).filter((t) => t.id !== id) },
-  }));
-
-  const removeBudget = (id) => setState((prev) => ({
-    ...prev,
-    finances: { ...prev.finances, budgets: (prev.finances.budgets || []).filter((b) => b.id !== id) },
   }));
 
   const removeGoal = (id) => setState((prev) => ({
@@ -225,16 +197,20 @@ export function FinancesPage({ state, setState }) {
     return Math.ceil(max / 100) * 100;
   }, [chartData]);
 
-  // Budget spent this month (sum of expense txns matching category)
-  const budgetUsage = (category) => {
-    return thisMonthTxns
-      .filter((t) => t.type === "expense" && t.category === category)
-      .reduce((s, t) => s + Number(t.amount || 0), 0);
+  // Sort by user-entered date (desc) so the log is always in chronological
+  // order regardless of when the row was created. Fall back to id (insertion
+  // time) when two rows share the same date so the order stays stable.
+  const sortByDateDesc = (a, b) => {
+    const cmp = (b.date || "").localeCompare(a.date || "");
+    if (cmp !== 0) return cmp;
+    return (b.id || 0) - (a.id || 0);
   };
-
-  const filteredTxns = txnFilter === "all"
+  const filteredTxns = (txnFilter === "all"
     ? transactions
-    : transactions.filter((t) => t.type === txnFilter);
+    : transactions.filter((t) => t.type === txnFilter)
+  )
+    .slice()
+    .sort(sortByDateDesc);
 
   // ── All-time totals ──────────────────────────────────────────────────
   const allTimeIncome  = transactions.filter((t) => t.type === "income").reduce((s, t) => s + Number(t.amount || 0), 0);
@@ -487,7 +463,7 @@ export function FinancesPage({ state, setState }) {
 
       {/* ── SAVINGS GOALS ─────────────────────────────────────────── */}
       <GlassCard style={{ marginTop: "24px" }}>
-        <SectionLabel accent="#22D3EE">SAVINGS GOALS</SectionLabel>
+        <SectionLabel accent="#FBBF24">SAVINGS GOALS</SectionLabel>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           {savingsGoals.length === 0 && (
@@ -583,12 +559,12 @@ export function FinancesPage({ state, setState }) {
           <Button
             onClick={() => setShowAddGoal(true)}
             variant="ghost"
-            style={{ width: "100%", marginTop: "12px", border: "1px dashed rgba(34, 211, 238, 0.35)" }}
+            style={{ width: "100%", marginTop: "12px", border: "1px dashed rgba(251, 191, 36, 0.35)" }}
           >
             + Add Savings Goal
           </Button>
         ) : (
-          <div style={{ marginTop: "16px", background: "rgba(0,0,0,0.15)", padding: "16px", borderRadius: "16px", border: "1px solid rgba(34, 211, 238, 0.25)" }}>
+          <div style={{ marginTop: "16px", background: "rgba(0,0,0,0.15)", padding: "16px", borderRadius: "16px", border: "1px solid rgba(251, 191, 36, 0.25)" }}>
             <Input
               label="Goal Name"
               value={newGoal.name}
@@ -621,121 +597,8 @@ export function FinancesPage({ state, setState }) {
               />
             </div>
             <div style={{ display: "flex", gap: "10px" }}>
-              <Button onClick={addGoal} variant="primary" style={{ flex: 2, background: "linear-gradient(135deg, #22D3EE, #0891B2)", border: "1px solid rgba(34,211,238,0.4)" }}>Save Goal</Button>
+              <Button onClick={addGoal} variant="primary" style={{ flex: 2, background: "linear-gradient(135deg, #FBBF24, #F59E0B)", border: "1px solid rgba(251,191,36,0.4)" }}>Save Goal</Button>
               <Button onClick={() => setShowAddGoal(false)} variant="ghost" style={{ flex: 1 }}>Cancel</Button>
-            </div>
-          </div>
-        )}
-      </GlassCard>
-
-      {/* ── BUDGET TRACKING ───────────────────────────────────────── */}
-      <GlassCard style={{ marginTop: "24px" }}>
-        <SectionLabel accent="#FBBF24">BUDGET TRACKING · THIS MONTH</SectionLabel>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          {budgets.length === 0 && (
-            <div style={{ fontSize: "13px", color: "var(--text-faint)", padding: "4px 0" }}>
-              No budgets set. Add categories to track spending.
-            </div>
-          )}
-          {budgets.map((b) => {
-            const spent = budgetUsage(b.category);
-            const pct = b.limit > 0 ? Math.min(100, Math.round((spent / b.limit) * 100)) : 0;
-            const overPct = b.limit > 0 ? Math.round((spent / b.limit) * 100) : 0;
-            const isOver = spent > b.limit;
-            const isWarning = !isOver && pct >= 80;
-            const barColor = isOver ? "#F87171" : isWarning ? "#FBBF24" : b.color;
-            return (
-              <motion.div
-                key={b.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                style={{
-                  background: "var(--card)",
-                  borderRadius: "14px",
-                  padding: "14px",
-                  border: `1px solid ${isOver ? "rgba(248,113,113,0.3)" : "var(--card-mid)"}`,
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <div style={{
-                      width: "8px",
-                      height: "8px",
-                      borderRadius: "50%",
-                      background: barColor,
-                      boxShadow: `0 0 8px ${barColor}90`,
-                    }} />
-                    <div style={{ color: "var(--text)", fontWeight: 700, fontSize: "14px" }}>{b.category}</div>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <div style={{ fontSize: "13px", color: "var(--text)", fontFamily: "var(--font-mono)" }}>
-                      <span style={{ color: barColor, fontWeight: 700 }}>{fmt$(spent)}</span>
-                      <span style={{ color: "var(--text-faint)" }}> / {fmt$(b.limit)}</span>
-                    </div>
-                    <button
-                      onClick={() => removeBudget(b.id)}
-                      style={{ background: "none", border: "none", color: "var(--text-faint)", cursor: "pointer", fontSize: "16px" }}
-                    >
-                      ×
-                    </button>
-                  </div>
-                </div>
-
-                <div style={{ height: "6px", background: "var(--card-mid)", borderRadius: "3px", overflow: "hidden" }}>
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${pct}%` }}
-                    transition={{ duration: 0.8, ease: "easeOut" }}
-                    style={{ height: "100%", background: `linear-gradient(90deg, ${barColor}, ${barColor}aa)` }}
-                  />
-                </div>
-                {isOver && (
-                  <div style={{ fontSize: "11px", color: "#F87171", marginTop: "6px", fontWeight: 600 }}>
-                    Over budget by {fmt$(spent - b.limit)} ({overPct}%)
-                  </div>
-                )}
-              </motion.div>
-            );
-          })}
-        </div>
-
-        {!showAddBudget ? (
-          <Button
-            onClick={() => setShowAddBudget(true)}
-            variant="ghost"
-            style={{ width: "100%", marginTop: "12px", border: "1px dashed rgba(251, 191, 36, 0.35)" }}
-          >
-            + Add Budget Category
-          </Button>
-        ) : (
-          <div style={{ marginTop: "16px", background: "rgba(0,0,0,0.15)", padding: "16px", borderRadius: "16px", border: "1px solid rgba(251, 191, 36, 0.25)" }}>
-            <Select
-              label="Category"
-              value={newBudget.category}
-              onChange={(e) => setNewBudget({ ...newBudget, category: e.target.value })}
-              options={TXN_CATEGORIES.map((c) => ({ value: c, label: c }))}
-              placeholder=""
-            />
-            <Input
-              label="Monthly Limit"
-              type="number"
-              value={newBudget.limit || ""}
-              onChange={(e) => setNewBudget({ ...newBudget, limit: Number(e.target.value) || 0 })}
-              placeholder="500"
-            />
-            <div style={{ marginBottom: "12px" }}>
-              <label style={{ fontSize: "10px", color: "var(--text-faint)", fontFamily: "var(--font-mono)", display: "block", marginBottom: "5px" }}>COLOR</label>
-              <input
-                type="color"
-                value={newBudget.color}
-                onChange={(e) => setNewBudget({ ...newBudget, color: e.target.value })}
-                style={{ width: "100%", height: "44px", borderRadius: "12px", border: "1px solid var(--border)", background: "var(--card)", padding: "4px", cursor: "pointer" }}
-              />
-            </div>
-            <div style={{ display: "flex", gap: "10px" }}>
-              <Button onClick={addBudget} variant="primary" style={{ flex: 2, background: "linear-gradient(135deg, #FBBF24, #F59E0B)", border: "1px solid rgba(251,191,36,0.4)" }}>Save Budget</Button>
-              <Button onClick={() => setShowAddBudget(false)} variant="ghost" style={{ flex: 1 }}>Cancel</Button>
             </div>
           </div>
         )}

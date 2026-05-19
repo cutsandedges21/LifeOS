@@ -1,11 +1,15 @@
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import {
+  motion,
+  AnimatePresence,
+  useMotionValue,
+  useTransform,
+  animate,
+} from "framer-motion";
 import { GlassCard, SectionHeader } from "./GlassComponents.jsx";
 import { Input, Button } from "./UI.jsx";
 import { lastNSnapshots } from "../utils/snapshots.js";
-import { getTodayDay } from "../utils/formatters.js";
-
-const todayISO = () => new Date().toISOString().slice(0, 10);
+import { getTodayDay, todayISO } from "../utils/formatters.js";
 
 export function GymPage({ state, setState }) {
   const [selectedDay, setSelectedDay] = useState(getTodayDay());
@@ -18,6 +22,19 @@ export function GymPage({ state, setState }) {
     reps: "",
     sets: "",
   });
+
+  // Switch-day mode: when active, tapping two days swaps the entire workout
+  // (split name + exercises) between them. Source is selected on first tap,
+  // target swap fires on the second tap. Tapping the same day a second time
+  // cancels.
+  const [switchMode, setSwitchMode] = useState(false);
+  const [switchSource, setSwitchSource] = useState(null);
+
+  // Inline-edit state for exercises. editingExerciseId points to the exercise
+  // being edited; editDraft holds the working values so the user can cancel
+  // without mutating state mid-edit.
+  const [editingExerciseId, setEditingExerciseId] = useState(null);
+  const [editDraft, setEditDraft] = useState({ name: "", weight: "", sets: "", reps: "" });
 
   const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 
@@ -59,6 +76,78 @@ export function GymPage({ state, setState }) {
     }));
   };
 
+  const startEditExercise = (ex) => {
+    setEditingExerciseId(ex.id);
+    setEditDraft({
+      name: ex.name || "",
+      weight: ex.weight || "",
+      sets: ex.sets || "",
+      reps: ex.reps || "",
+    });
+  };
+
+  const cancelEditExercise = () => {
+    setEditingExerciseId(null);
+    setEditDraft({ name: "", weight: "", sets: "", reps: "" });
+  };
+
+  const saveEditExercise = () => {
+    if (!editDraft.name.trim()) return;
+    setState((prev) => ({
+      ...prev,
+      gymExercises: {
+        ...prev.gymExercises,
+        [selectedDay]: (prev.gymExercises?.[selectedDay] || []).map((e) =>
+          e.id === editingExerciseId
+            ? { ...e, ...editDraft, name: editDraft.name.trim() }
+            : e
+        ),
+      },
+    }));
+    cancelEditExercise();
+  };
+
+  // Tap handler for the day pills. In normal mode this just selects the day.
+  // In switch mode, the first tap latches a source day and the second tap
+  // swaps the split name + exercise list between the two days. Tapping the
+  // same day twice cancels the pending swap.
+  const handleDayTap = (day) => {
+    if (!switchMode) {
+      setSelectedDay(day);
+      return;
+    }
+    if (!switchSource) {
+      setSwitchSource(day);
+      return;
+    }
+    if (switchSource === day) {
+      setSwitchSource(null);
+      return;
+    }
+    const a = switchSource;
+    const b = day;
+    setState((prev) => {
+      const split = { ...(prev.gymSplit || {}) };
+      const exercises = { ...(prev.gymExercises || {}) };
+      const tmpSplit = split[a];
+      split[a] = split[b];
+      split[b] = tmpSplit;
+      const tmpEx = exercises[a];
+      exercises[a] = exercises[b];
+      exercises[b] = tmpEx;
+      const today = getTodayDay();
+      const workoutToday = today === a || today === b ? (split[today] ?? "") : prev.workoutDay;
+      return {
+        ...prev,
+        gymSplit: split,
+        gymExercises: exercises,
+        workoutDay: workoutToday,
+      };
+    });
+    setSwitchSource(null);
+    setSwitchMode(false);
+  };
+
   const logSkip = () => {
     const reason = skipReason.trim() || "No reason given";
     setState((prev) => ({
@@ -70,6 +159,18 @@ export function GymPage({ state, setState }) {
     }));
     setSkipReason("");
     setShowSkipModal(false);
+  };
+
+  // Undo today's logged status. Removes any gymSkips/gymVisits row whose
+  // date matches today's local ISO. Cleans up both old UTC-dated rows that
+  // happen to collide with today AND a legitimate mistake.
+  const undoToday = () => {
+    const t = todayISO();
+    setState((prev) => ({
+      ...prev,
+      gymSkips: (prev.gymSkips || []).filter((s) => s.date !== t),
+      gymVisits: (prev.gymVisits || []).filter((v) => v.date !== t),
+    }));
   };
 
   const logVisit = () => {
@@ -197,27 +298,79 @@ export function GymPage({ state, setState }) {
 
       {/* Day Selector */}
       <GlassCard style={{ padding: "16px", marginBottom: "16px" }} glow="#FBBF24">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+          <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "var(--text-faint)", letterSpacing: "0.12em", fontWeight: 700 }}>
+            {switchMode
+              ? switchSource
+                ? `TAP A DAY TO SWAP WITH ${switchSource.slice(0, 3).toUpperCase()}`
+                : "TAP FIRST DAY TO SWAP"
+              : "SELECT DAY"}
+          </div>
+          <motion.button
+            onClick={() => {
+              if (switchMode) {
+                setSwitchMode(false);
+                setSwitchSource(null);
+              } else {
+                setSwitchMode(true);
+              }
+            }}
+            whileTap={{ scale: 0.95 }}
+            style={{
+              fontSize: "10px",
+              fontFamily: "var(--font-mono)",
+              fontWeight: 800,
+              letterSpacing: "0.08em",
+              padding: "5px 10px",
+              borderRadius: "10px",
+              background: switchMode ? "rgba(251, 191, 36, 0.2)" : "var(--card)",
+              border: `1px solid ${switchMode ? "rgba(251, 191, 36, 0.6)" : "var(--border)"}`,
+              color: switchMode ? "#FBBF24" : "var(--text-muted)",
+              cursor: "pointer",
+            }}
+          >
+            {switchMode ? "✕ CANCEL" : "↔ SWITCH DAYS"}
+          </motion.button>
+        </div>
         <div className="gym-days" style={{ display: "flex", justifyContent: "space-between", gap: "4px" }}>
           {days.map((day) => {
             const isActive = selectedDay === day;
             const isToday = getTodayDay() === day;
+            const isSwitchSource = switchMode && switchSource === day;
             return (
               <motion.button
                 key={day}
-                onClick={() => setSelectedDay(day)}
+                onClick={() => handleDayTap(day)}
                 whileTap={{ scale: 0.9 }}
                 style={{
                   flex: 1,
                   padding: "10px 0",
                   borderRadius: "12px",
-                  background: isActive ? "#FBBF24" : "var(--card)",
-                  border: `1px solid ${isActive ? "#FBBF24" : isToday ? "rgba(251, 191, 36, 0.4)" : "var(--border)"}`,
-                  color: isActive ? "#000" : "var(--text-muted)",
+                  background: isSwitchSource
+                    ? "rgba(251, 191, 36, 0.25)"
+                    : isActive && !switchMode
+                      ? "#FBBF24"
+                      : "var(--card)",
+                  border: `1px solid ${
+                    isSwitchSource
+                      ? "#FBBF24"
+                      : isActive && !switchMode
+                        ? "#FBBF24"
+                        : isToday
+                          ? "rgba(251, 191, 36, 0.4)"
+                          : "var(--border)"
+                  }`,
+                  color: isSwitchSource
+                    ? "#FBBF24"
+                    : isActive && !switchMode
+                      ? "#000"
+                      : "var(--text-muted)",
                   fontSize: "11px",
                   fontWeight: 800,
                   cursor: "pointer",
                   fontFamily: "var(--font-mono)",
                   textTransform: "uppercase",
+                  boxShadow: isSwitchSource ? "0 0 12px rgba(251,191,36,0.4)" : "none",
                 }}
               >
                 {day.slice(0, 3)}
@@ -331,92 +484,21 @@ export function GymPage({ state, setState }) {
             const trendColor = trendDelta > 0 ? "#34D399" : trendDelta < 0 ? "#F87171" : "var(--text-faint)";
 
             return (
-              <motion.div
+              <SwipeableExerciseRow
                 key={e.id}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: idx * 0.05 }}
-                style={{
-                  background: "var(--card)",
-                  backdropFilter: "blur(12px)",
-                  borderRadius: "16px",
-                  padding: "16px",
-                  border: "1px solid var(--border)",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--text)" }}>{e.name}</div>
-                    <div style={{ display: "flex", gap: "12px", marginTop: "4px" }}>
-                      <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-                        <span style={{ color: "var(--text)", fontWeight: 600 }}>{e.sets}</span> sets
-                      </div>
-                      <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-                        <span style={{ color: "var(--text)", fontWeight: 600 }}>{e.reps}</span> reps
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: "18px", fontWeight: 800, color: "#FBBF24" }}>{e.weight}</div>
-                      <div style={{ fontSize: "9px", color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>LOAD (LBS)</div>
-                    </div>
-                    <button
-                      onClick={() => removeExercise(e.id)}
-                      style={{ background: "none", border: "none", color: "var(--text-faint)", cursor: "pointer", fontSize: "20px" }}
-                    >
-                      ×
-                    </button>
-                  </div>
-                </div>
-
-                {/* Progressive overload trend — only shown once a real history
-                    exists (≥2 deduped points), otherwise the row collapses
-                    so unused exercises don't gain decorative chrome. */}
-                {trend.length >= 2 && (
-                  <div style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "10px",
-                    marginTop: "12px",
-                    paddingTop: "10px",
-                    borderTop: "1px solid var(--border)",
-                  }}>
-                    <div style={{
-                      fontSize: "9px",
-                      fontFamily: "var(--font-mono)",
-                      color: "var(--text-faint)",
-                      letterSpacing: "0.1em",
-                      fontWeight: 700,
-                      flexShrink: 0,
-                    }}>
-                      OVERLOAD
-                    </div>
-                    <div style={{
-                      flex: 1,
-                      fontFamily: "var(--font-mono)",
-                      fontSize: "12px",
-                      color: "var(--text-muted)",
-                      letterSpacing: "0.02em",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}>
-                      {trend.join(" → ")}
-                    </div>
-                    <div style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: "11px",
-                      fontWeight: 800,
-                      color: trendColor,
-                      flexShrink: 0,
-                    }}>
-                      {trendDelta > 0 ? "▲ +" : trendDelta < 0 ? "▼ −" : "•"}
-                      {trendDelta !== 0 ? Math.abs(trendDelta) : ""}
-                    </div>
-                  </div>
-                )}
-              </motion.div>
+                ex={e}
+                idx={idx}
+                trend={trend}
+                trendDelta={trendDelta}
+                trendColor={trendColor}
+                isEditing={editingExerciseId === e.id}
+                editDraft={editDraft}
+                setEditDraft={setEditDraft}
+                onStartEdit={() => startEditExercise(e)}
+                onCancelEdit={cancelEditExercise}
+                onSaveEdit={saveEditExercise}
+                onRemove={() => removeExercise(e.id)}
+              />
             );
           })}
           {currentExercises.length === 0 && (
@@ -444,9 +526,30 @@ export function GymPage({ state, setState }) {
               fontFamily: "var(--font-mono)",
               letterSpacing: "0.08em",
               boxShadow: "0 4px 20px rgba(52,211,153,0.15)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "12px",
             }}
           >
-            ✓ GYM HIT TODAY · STREAK ACTIVE
+            <span>✓ GYM HIT TODAY · STREAK ACTIVE</span>
+            <button
+              onClick={undoToday}
+              style={{
+                background: "rgba(52, 211, 153, 0.15)",
+                border: "1px solid rgba(52, 211, 153, 0.5)",
+                color: "#34D399",
+                borderRadius: "10px",
+                padding: "5px 10px",
+                fontSize: "10px",
+                fontWeight: 800,
+                cursor: "pointer",
+                fontFamily: "var(--font-mono)",
+                letterSpacing: "0.08em",
+              }}
+            >
+              UNDO
+            </button>
           </div>
         ) : skippedToday ? (
           <div
@@ -462,9 +565,30 @@ export function GymPage({ state, setState }) {
               fontWeight: 700,
               fontFamily: "var(--font-mono)",
               letterSpacing: "0.08em",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "12px",
             }}
           >
-            GYM SKIPPED TODAY · STREAK RESET
+            <span>GYM SKIPPED TODAY · STREAK RESET</span>
+            <button
+              onClick={undoToday}
+              style={{
+                background: "rgba(248, 113, 113, 0.15)",
+                border: "1px solid rgba(248, 113, 113, 0.5)",
+                color: "#F87171",
+                borderRadius: "10px",
+                padding: "5px 10px",
+                fontSize: "10px",
+                fontWeight: 800,
+                cursor: "pointer",
+                fontFamily: "var(--font-mono)",
+                letterSpacing: "0.08em",
+              }}
+            >
+              UNDO
+            </button>
           </div>
         ) : (
           <>
@@ -602,6 +726,224 @@ export function GymPage({ state, setState }) {
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+// Swipe-left on an exercise row to reveal EDIT and DELETE actions. Mirrors
+// the SwipeableGoalItem in HabitsPage so the gesture feels identical across
+// the app — same drag distance, same color story (accent for edit, red for
+// destroy). When isEditing flips true the row morphs into an inline form so
+// the user can adjust name/weight/sets/reps without leaving the list.
+function SwipeableExerciseRow({
+  ex,
+  idx,
+  trend,
+  trendDelta,
+  trendColor,
+  isEditing,
+  editDraft,
+  setEditDraft,
+  onStartEdit,
+  onCancelEdit,
+  onSaveEdit,
+  onRemove,
+}) {
+  const x = useMotionValue(0);
+  const opacity = useTransform(x, [0, -40], [0, 1]);
+
+  const handleEditClick = () => {
+    animate(x, 0, { duration: 0.3 });
+    onStartEdit();
+  };
+
+  const handleRemoveClick = () => {
+    animate(x, 0, { duration: 0.3 });
+    onRemove();
+  };
+
+  if (isEditing) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        style={{
+          background: "var(--card)",
+          backdropFilter: "blur(12px)",
+          borderRadius: "16px",
+          padding: "16px",
+          border: "1px solid rgba(251, 191, 36, 0.45)",
+          boxShadow: "0 0 20px rgba(251,191,36,0.15)",
+        }}
+      >
+        <Input
+          label="Exercise Name"
+          value={editDraft.name}
+          onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })}
+          placeholder="Bench Press"
+        />
+        <div style={{ display: "flex", gap: "10px" }}>
+          <Input
+            label="Weight"
+            value={editDraft.weight}
+            onChange={(e) => setEditDraft({ ...editDraft, weight: e.target.value })}
+            placeholder="225 lbs"
+            style={{ flex: 1 }}
+          />
+          <Input
+            label="Sets"
+            value={editDraft.sets}
+            onChange={(e) => setEditDraft({ ...editDraft, sets: e.target.value })}
+            placeholder="3"
+            style={{ flex: 1 }}
+          />
+          <Input
+            label="Reps"
+            value={editDraft.reps}
+            onChange={(e) => setEditDraft({ ...editDraft, reps: e.target.value })}
+            placeholder="10"
+            style={{ flex: 1 }}
+          />
+        </div>
+        <div style={{ display: "flex", gap: "10px", marginTop: "8px" }}>
+          <Button onClick={onSaveEdit} style={{ flex: 2, background: "#FBBF24", color: "#000" }}>Save</Button>
+          <Button onClick={onCancelEdit} variant="ghost" style={{ flex: 1 }}>Cancel</Button>
+        </div>
+      </motion.div>
+    );
+  }
+
+  return (
+    <div style={{ position: "relative", overflow: "hidden", borderRadius: "16px" }}>
+      <motion.div
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          justifyContent: "flex-end",
+          zIndex: 0,
+          opacity,
+        }}
+      >
+        <button
+          onClick={handleEditClick}
+          style={{
+            width: "70px",
+            background: "#FBBF24",
+            border: "none",
+            color: "#000",
+            fontWeight: 800,
+            fontSize: "12px",
+            cursor: "pointer",
+            fontFamily: "var(--font-mono)",
+            letterSpacing: "0.05em",
+          }}
+        >
+          EDIT
+        </button>
+        <button
+          onClick={handleRemoveClick}
+          style={{
+            width: "70px",
+            background: "#EF4444",
+            border: "none",
+            color: "#fff",
+            fontWeight: 800,
+            fontSize: "12px",
+            cursor: "pointer",
+            fontFamily: "var(--font-mono)",
+            letterSpacing: "0.05em",
+          }}
+        >
+          DELETE
+        </button>
+      </motion.div>
+
+      <motion.div
+        drag="x"
+        dragConstraints={{ left: -140, right: 0 }}
+        dragElastic={0.1}
+        style={{ position: "relative", zIndex: 1, x }}
+      >
+        <motion.div
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: idx * 0.05 }}
+          style={{
+            background: "var(--card)",
+            backdropFilter: "blur(12px)",
+            borderRadius: "16px",
+            padding: "16px",
+            border: "1px solid var(--border)",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--text)" }}>{ex.name}</div>
+              <div style={{ display: "flex", gap: "12px", marginTop: "4px" }}>
+                <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                  <span style={{ color: "var(--text)", fontWeight: 600 }}>{ex.sets}</span> sets
+                </div>
+                <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                  <span style={{ color: "var(--text)", fontWeight: 600 }}>{ex.reps}</span> reps
+                </div>
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: "18px", fontWeight: 800, color: "#FBBF24" }}>{ex.weight}</div>
+                <div style={{ fontSize: "9px", color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>LOAD (LBS)</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Progressive overload trend — only shown once a real history
+              exists (≥2 deduped points). */}
+          {trend.length >= 2 && (
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              marginTop: "12px",
+              paddingTop: "10px",
+              borderTop: "1px solid var(--border)",
+            }}>
+              <div style={{
+                fontSize: "9px",
+                fontFamily: "var(--font-mono)",
+                color: "var(--text-faint)",
+                letterSpacing: "0.1em",
+                fontWeight: 700,
+                flexShrink: 0,
+              }}>
+                OVERLOAD
+              </div>
+              <div style={{
+                flex: 1,
+                fontFamily: "var(--font-mono)",
+                fontSize: "12px",
+                color: "var(--text-muted)",
+                letterSpacing: "0.02em",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}>
+                {trend.join(" → ")}
+              </div>
+              <div style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "11px",
+                fontWeight: 800,
+                color: trendColor,
+                flexShrink: 0,
+              }}>
+                {trendDelta > 0 ? "▲ +" : trendDelta < 0 ? "▼ −" : "•"}
+                {trendDelta !== 0 ? Math.abs(trendDelta) : ""}
+              </div>
+            </div>
+          )}
+        </motion.div>
+      </motion.div>
     </div>
   );
 }
