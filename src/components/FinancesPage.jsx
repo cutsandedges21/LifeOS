@@ -6,6 +6,7 @@ import { Sparkline } from "./Sparkline.jsx";
 import { lastNSnapshots } from "../utils/snapshots.js";
 import { upcomingRenewals } from "../utils/notifications.js";
 import { fmt$, todayISO } from "../utils/formatters.js";
+import { useUndoToast } from "./UndoToast.jsx";
 
 const TXN_CATEGORIES = [
   "Salary", "Business", "Investment", "Freelance", "Gift",
@@ -37,6 +38,7 @@ export function FinancesPage({ state, setState }) {
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [txnFilter, setTxnFilter] = useState("all"); // all | income | expense
   const [celebratedGoal, setCelebratedGoal] = useState(null); // { name, color }
+  const { show: showUndoToast } = useUndoToast();
 
   const [newBusiness, setNewBusiness] = useState({
     name: "",
@@ -132,15 +134,55 @@ export function FinancesPage({ state, setState }) {
     finances: { ...prev.finances, subs: (prev.finances.subs || []).filter((s) => s.id !== id) },
   }));
 
-  const removeTxn = (id) => setState((prev) => ({
-    ...prev,
-    finances: { ...prev.finances, transactions: (prev.finances.transactions || []).filter((t) => t.id !== id) },
-  }));
+  // Delete + undo. Capture the row and its index in the underlying array so
+  // the undo path can re-insert it where it was, not just at the top.
+  const removeTxn = (id) => {
+    const list = state.finances.transactions || [];
+    const index = list.findIndex((t) => t.id === id);
+    if (index === -1) return;
+    const removed = list[index];
+    setState((prev) => ({
+      ...prev,
+      finances: {
+        ...prev.finances,
+        transactions: (prev.finances.transactions || []).filter((t) => t.id !== id),
+      },
+    }));
+    const label = (removed.description || "").trim() || "transaction";
+    showUndoToast(`Deleted "${label}"`, () => {
+      setState((prev) => {
+        const current = prev.finances.transactions || [];
+        if (current.some((t) => t.id === removed.id)) return prev;
+        const next = [...current];
+        next.splice(Math.min(index, next.length), 0, removed);
+        return { ...prev, finances: { ...prev.finances, transactions: next } };
+      });
+    });
+  };
 
-  const removeGoal = (id) => setState((prev) => ({
-    ...prev,
-    finances: { ...prev.finances, savingsGoals: (prev.finances.savingsGoals || []).filter((g) => g.id !== id) },
-  }));
+  const removeGoal = (id) => {
+    const list = state.finances.savingsGoals || [];
+    const index = list.findIndex((g) => g.id === id);
+    if (index === -1) return;
+    const removed = list[index];
+    setState((prev) => ({
+      ...prev,
+      finances: {
+        ...prev.finances,
+        savingsGoals: (prev.finances.savingsGoals || []).filter((g) => g.id !== id),
+      },
+    }));
+    const label = (removed.name || "").trim() || "savings goal";
+    showUndoToast(`Deleted "${label}"`, () => {
+      setState((prev) => {
+        const current = prev.finances.savingsGoals || [];
+        if (current.some((g) => g.id === removed.id)) return prev;
+        const next = [...current];
+        next.splice(Math.min(index, next.length), 0, removed);
+        return { ...prev, finances: { ...prev.finances, savingsGoals: next } };
+      });
+    });
+  };
 
   const adjustGoalSaved = (id, delta) => {
     setState((prev) => {

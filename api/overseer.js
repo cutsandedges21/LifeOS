@@ -5,10 +5,11 @@
 // system prompt server-side and forward to Gemini using GEMINI_API_KEY
 // from Vercel's environment.
 //
-// Set GEMINI_API_KEY in Vercel → Project Settings → Environment Variables
-// (Production + Preview + Development). It must NOT have a VITE_ prefix —
-// VITE_ vars get inlined into the client bundle, which is exactly what
-// we're trying to avoid.
+// The key lives in Vercel → Project Settings → Environment Variables. The
+// deployed project stores it as `Google_Gemini_API`; local dev uses
+// `GEMINI_API_KEY` in .env. The handler below reads either. Whatever the
+// name, it must NOT have a VITE_ prefix — VITE_ vars get inlined into the
+// client bundle, which is exactly what we're trying to avoid.
 
 const GEMINI_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
@@ -43,7 +44,10 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: "Forbidden origin" });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  // Accept either name: local dev (.env) uses GEMINI_API_KEY, while the
+  // Vercel project stores the key as Google_Gemini_API. Reading both keeps
+  // dev and prod working without renaming the deployed secret.
+  const apiKey = process.env.GEMINI_API_KEY || process.env.Google_Gemini_API;
   if (!apiKey) {
     return res
       .status(500)

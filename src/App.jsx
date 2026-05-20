@@ -564,6 +564,17 @@ export default function LifeOS() {
     const totalRevenue = state.businesses.reduce((s, b) => s + b.revenue, 0);
     const totalProfit = state.businesses.reduce((s, b) => s + (b.revenue - b.expenses), 0);
 
+    // Live habit + gym status for today, plus the *derived* net worth. The
+    // raw state.finances.netWorth field is a vestigial 0 that nothing updates —
+    // every other surface computes net worth from transactions, so the Overseer
+    // must too or it reads $0 while the dashboard shows the real figure.
+    const todayIso = todayISO();
+    const habits = state.habits || [];
+    const habitCompletions = state.habitCompletions || {};
+    const habitsDone = habits.filter((h) => habitCompletions[h.id]?.[todayIso]).length;
+    const wentGymToday = (state.gymVisits || []).some((v) => v.date === todayIso);
+    const netWorth = computeNetWorth(state);
+
     // Last 5 journal entries — gives Overseer recent self-reported context
     // ("yesterday you said you were drained — today you still showed up").
     const recentJournal = (state.journalEntries || [])
@@ -573,11 +584,14 @@ export default function LifeOS() {
     const ctx = {
       date: dayStr(),
       goals: `${completedGoals}/${state.goals.length} done`,
+      habits: `${habitsDone}/${habits.length} done today`,
       streak: state.streak,
-      recovery: state.whoop.recovery,
+      sleep: `${state.whoop?.sleep ?? 0}%`,
+      recovery: state.whoop?.recovery ?? 0,
+      gymToday: wentGymToday ? "yes" : "no",
       revenue: totalRevenue,
       profit: totalProfit,
-      netWorth: state.finances.netWorth,
+      netWorth,
       recentJournal,
     };
 

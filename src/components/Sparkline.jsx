@@ -58,7 +58,6 @@ export function Sparkline({
 
   // Random id keeps gradient defs unique per instance.
   const gradId = `spark-${Math.random().toString(36).slice(2, 8)}`;
-  const last = pts[pts.length - 1];
 
   return (
     <svg {...svgProps}>
@@ -84,7 +83,22 @@ export function Sparkline({
         strokeLinecap="round"
         vectorEffect="non-scaling-stroke"
       />
-      <circle cx={last[0]} cy={last[1]} r="2.5" fill={color} />
+      {/* One round dot per data point so each day reads as a distinct point.
+          Drawn as zero-length round-capped paths with non-scaling-stroke so
+          they stay perfectly circular even when the SVG is stretched
+          horizontally by preserveAspectRatio="none" — a plain <circle> gets
+          squashed into a wide ellipse on big screens. */}
+      {pts.map(([x, y], i) => (
+        <path
+          key={i}
+          d={`M${x.toFixed(1)},${y.toFixed(1)} L${x.toFixed(1)},${y.toFixed(1)}`}
+          stroke={color}
+          strokeWidth={i === pts.length - 1 ? strokeWidth * 3.6 : strokeWidth * 2.4}
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+          fill="none"
+        />
+      ))}
     </svg>
   );
 }

@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
+import { UndoToastProvider } from "./components/UndoToast.jsx";
 import "./styles/responsive.css";
 import { registerServiceWorker } from "./utils/notifications.js";
 
@@ -10,6 +11,8 @@ registerServiceWorker();
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <App />
+    <UndoToastProvider>
+      <App />
+    </UndoToastProvider>
   </StrictMode>
 );

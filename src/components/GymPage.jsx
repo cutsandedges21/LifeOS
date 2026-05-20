@@ -10,12 +10,14 @@ import { GlassCard, SectionHeader } from "./GlassComponents.jsx";
 import { Input, Button } from "./UI.jsx";
 import { lastNSnapshots } from "../utils/snapshots.js";
 import { getTodayDay, todayISO } from "../utils/formatters.js";
+import { useUndoToast } from "./UndoToast.jsx";
 
 export function GymPage({ state, setState }) {
   const [selectedDay, setSelectedDay] = useState(getTodayDay());
   const [showAddExercise, setShowAddExercise] = useState(false);
   const [showSkipModal, setShowSkipModal] = useState(false);
   const [skipReason, setSkipReason] = useState("");
+  const { show: showUndoToast } = useUndoToast();
   const [newExercise, setNewExercise] = useState({
     name: "",
     weight: "",
@@ -66,14 +68,35 @@ export function GymPage({ state, setState }) {
     setShowAddExercise(false);
   };
 
+  // Delete + undo. The exercise is scoped to a specific day, so the undo
+  // closure has to remember which day it came from — selectedDay can change
+  // before the user hits UNDO.
   const removeExercise = (id) => {
+    const day = selectedDay;
+    const list = state.gymExercises?.[day] || [];
+    const index = list.findIndex((e) => e.id === id);
+    if (index === -1) return;
+    const removed = list[index];
     setState((prev) => ({
       ...prev,
       gymExercises: {
         ...prev.gymExercises,
-        [selectedDay]: (prev.gymExercises?.[selectedDay] || []).filter((e) => e.id !== id),
+        [day]: (prev.gymExercises?.[day] || []).filter((e) => e.id !== id),
       },
     }));
+    const label = (removed.name || "").trim() || "exercise";
+    showUndoToast(`Deleted "${label}"`, () => {
+      setState((prev) => {
+        const current = prev.gymExercises?.[day] || [];
+        if (current.some((e) => e.id === removed.id)) return prev;
+        const next = [...current];
+        next.splice(Math.min(index, next.length), 0, removed);
+        return {
+          ...prev,
+          gymExercises: { ...prev.gymExercises, [day]: next },
+        };
+      });
+    });
   };
 
   const startEditExercise = (ex) => {

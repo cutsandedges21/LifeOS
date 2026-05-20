@@ -84,7 +84,6 @@ export function MainPage({
       {/* Trends + Weekly Review — both read from state.historySnapshots */}
       <TrendsCard
         snapshots={state.historySnapshots}
-        streak={state.streak}
         currentSleep={state.whoop?.sleep}
         currentNet={computeNetWorth(state)}
       />

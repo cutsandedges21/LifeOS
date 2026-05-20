@@ -86,18 +86,14 @@ function TrendTile({ label, current, data, color, delta, formatDelta }) {
   );
 }
 
-export function TrendsCard({ snapshots, streak, currentSleep, currentNet }) {
+export function TrendsCard({ snapshots, currentSleep, currentNet }) {
   const last7 = lastNSnapshots(snapshots, 7);
   const sleepSeries = last7.map((s) => s.sleep);
-  const streakSeries = last7.map((s) => s.streak);
   const netSeries = last7.map((s) => s.netWorth);
-  const goalSeries = last7.map((s) => (s.goalsTotal ? Math.round((s.goalsHit / s.goalsTotal) * 100) : 0));
 
   // Compare oldest available to newest for delta arrows.
   const delta = (arr) => (arr.length >= 2 ? arr[arr.length - 1] - arr[0] : null);
   const sleepDelta = delta(sleepSeries);
-  const streakDelta = delta(streakSeries);
-  const goalDelta = delta(goalSeries);
   const netDeltaRaw = delta(netSeries);
 
   return (
@@ -113,28 +109,12 @@ export function TrendsCard({ snapshots, streak, currentSleep, currentNet }) {
           formatDelta={(d) => `${Math.abs(d)}%`}
         />
         <TrendTile
-          label="STREAK"
-          current={`${streak}d`}
-          data={streakSeries}
-          color="#FBBF24"
-          delta={streakDelta}
-          formatDelta={(d) => `${Math.abs(d)}d`}
-        />
-        <TrendTile
           label="NET WORTH"
           current={fmtCompact(currentNet)}
           data={netSeries}
           color="var(--accent-main)"
           delta={netDeltaRaw}
           formatDelta={(d) => fmtCompact(Math.abs(d))}
-        />
-        <TrendTile
-          label="GOALS"
-          current={`${goalSeries.length ? goalSeries[goalSeries.length - 1] : 0}%`}
-          data={goalSeries}
-          color="#22D3EE"
-          delta={goalDelta}
-          formatDelta={(d) => `${Math.abs(d)}%`}
         />
       </div>
     </GlassCard>
