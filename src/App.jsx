@@ -21,6 +21,7 @@ import {
   snapshotsEqual,
   computeNetWorth,
 } from "./utils/snapshots.js";
+import { applyOverseerAction, ACTION_KINDS } from "./utils/overseerActions.js";
 import {
   notificationStatus,
   requestNotificationPermission,
@@ -48,6 +49,9 @@ const GREETINGS = [
 // the browser bundle. The system prompt is defined in MainPage.jsx
 // (OVERSEER_SYSTEM_PROMPT) and sent through with each call so the
 // instructions live next to the UI they power.
+// Returns { reply, action } — `action` is a structured proposal the user can
+// confirm to log into their account (or null). Errors degrade to a reply
+// string with no action so the chat never hard-fails.
 async function askOverseer(messages, ctx, systemPrompt, retries = 2) {
   try {
     const res = await fetch("/api/overseer", {
@@ -73,10 +77,10 @@ async function askOverseer(messages, ctx, systemPrompt, retries = 2) {
     }
 
     const d = await res.json();
-    return d.text ?? "…";
+    return { reply: d.reply ?? d.text ?? "…", action: d.action ?? null };
   } catch (error) {
     console.error("Overseer API error:", error);
-    return `Overseer offline: ${error.message || "unknown error"}`;
+    return { reply: `Overseer offline: ${error.message || "unknown error"}`, action: null };
   }
 }
 
@@ -556,7 +560,6 @@ export default function LifeOS() {
       ...prev,
       overseerLog: newLog,
       overseerInput: msgOverride ? prev.overseerInput : "",
-      overseerMessageCount: prev.overseerMessageCount + 1, // Increment message count
     }));
     setOverseerLoading(true);
 
@@ -600,12 +603,45 @@ export default function LifeOS() {
       userMsg,
     ];
 
-    const reply = await askOverseer(apiMessages, ctx, OVERSEER_SYSTEM_PROMPT);
+    const { reply, action } = await askOverseer(apiMessages, ctx, OVERSEER_SYSTEM_PROMPT);
+    const hasAction = !!(action && ACTION_KINDS.includes(action.kind));
     setState((prev) => ({
       ...prev,
-      overseerLog: [...prev.overseerLog, { role: "ai", text: reply }],
+      overseerLog: [
+        ...prev.overseerLog,
+        hasAction
+          ? { role: "ai", text: reply, action, actionStatus: "pending" }
+          : { role: "ai", text: reply },
+      ],
+      // Logging is free: only a pure-chat reply costs one of the daily messages.
+      overseerMessageCount: hasAction
+        ? prev.overseerMessageCount
+        : prev.overseerMessageCount + 1,
     }));
     setOverseerLoading(false);
+  };
+
+  // Confirm a proposed Overseer action: apply it to state and mark the chat
+  // message done. Keyed by the message's index in overseerLog.
+  const confirmOverseerAction = (logIndex) => {
+    setState((prev) => {
+      const entry = prev.overseerLog[logIndex];
+      if (!entry?.action || entry.actionStatus !== "pending") return prev;
+      const { ok, state: applied } = applyOverseerAction(entry.action, prev);
+      const overseerLog = prev.overseerLog.map((m, i) =>
+        i === logIndex ? { ...m, actionStatus: ok ? "done" : "error" } : m
+      );
+      return { ...applied, overseerLog };
+    });
+  };
+
+  const dismissOverseerAction = (logIndex) => {
+    setState((prev) => ({
+      ...prev,
+      overseerLog: prev.overseerLog.map((m, i) =>
+        i === logIndex ? { ...m, actionStatus: "dismissed" } : m
+      ),
+    }));
   };
 
   const pageAccent = getPageAccent(tab, state.theme || "dark");
@@ -753,6 +789,8 @@ export default function LifeOS() {
                 pct={pct}
                 overseerLoading={overseerLoading}
                 sendMsg={sendMsg}
+                onConfirmAction={confirmOverseerAction}
+                onDismissAction={dismissOverseerAction}
                 chatRef={chatRef}
                 greeting={greeting}
                 overseerCap={overseerCap}

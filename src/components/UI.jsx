@@ -220,9 +220,12 @@ export const Select = ({ label, value, onChange, options, placeholder = "Select.
       }}
       {...props}
     >
-      {placeholder && <option value="">{placeholder}</option>}
+      {/* Native dropdown options need an explicit solid background + light
+          text — without them the popup inherits a light background and the
+          theme's light text, rendering the labels invisible. */}
+      {placeholder && <option value="" style={{ background: "#16171c", color: "#f4f4f6" }}>{placeholder}</option>}
       {options.map((opt) => (
-        <option key={opt.value} value={opt.value}>{opt.label}</option>
+        <option key={opt.value} value={opt.value} style={{ background: "#16171c", color: "#f4f4f6" }}>{opt.label}</option>
       ))}
     </select>
   </div>

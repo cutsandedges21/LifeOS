@@ -3,6 +3,7 @@ import { GlassCard, HeroSection } from "./GlassComponents.jsx";
 import { SectionLabel } from "./UI.jsx";
 import { TrendsCard, WeeklyReviewCard } from "./Insights.jsx";
 import { computeNetWorth } from "../utils/snapshots.js";
+import { describeAction } from "../utils/overseerActions.js";
 import { dayStr, todayISO } from "../utils/formatters.js";
 
 // ─── OVERSEER SYSTEM PROMPT ─────────────────────────────────────────────
@@ -45,6 +46,8 @@ export function MainPage({
   greeting,
   overseerCap = 3,
   setTab, // App passes this so the "manage goals" pill can jump to the habits page
+  onConfirmAction,
+  onDismissAction,
 }) {
   const completedGoals = state.goals.filter((g) => g.done).length;
   const goalsTotal = state.goals.length;
@@ -189,7 +192,9 @@ export function MainPage({
                 key={i}
                 style={{
                   display: "flex",
-                  justifyContent: m.role === "user" ? "flex-end" : "flex-start",
+                  flexDirection: "column",
+                  alignItems: m.role === "user" ? "flex-end" : "flex-start",
+                  gap: "8px",
                 }}
               >
                 <motion.div
@@ -216,6 +221,14 @@ export function MainPage({
                 >
                   {m.text}
                 </motion.div>
+                {m.action && (
+                  <OverseerActionChip
+                    action={m.action}
+                    status={m.actionStatus}
+                    onConfirm={() => onConfirmAction?.(i)}
+                    onDismiss={() => onDismissAction?.(i)}
+                  />
+                )}
               </div>
             ))}
             {overseerLoading && (
@@ -502,6 +515,86 @@ function ProgressRow({ label, accent, done, total, pct }) {
           None yet — tap to add
         </div>
       )}
+    </div>
+  );
+}
+
+// Confirmation chip shown under an Overseer reply that proposed a write
+// action. Nothing is saved until the user taps Confirm.
+function OverseerActionChip({ action, status, onConfirm, onDismiss }) {
+  const summary = describeAction(action);
+
+  if (status === "dismissed") return null;
+  if (status === "done") {
+    return (
+      <div style={{ fontSize: "11px", color: "#34D399", fontWeight: 700, paddingLeft: "4px" }}>
+        ✓ Logged · {summary}
+      </div>
+    );
+  }
+  if (status === "error") {
+    return (
+      <div style={{ fontSize: "11px", color: "#F87171", fontWeight: 700, paddingLeft: "4px" }}>
+        Couldn't log that — {summary}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        maxWidth: "85%",
+        background: "var(--card)",
+        border: "1px solid rgba(var(--accent-main-rgb), 0.35)",
+        borderRadius: "14px",
+        padding: "12px 14px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "10px",
+        boxShadow: "0 0 16px rgba(var(--accent-main-rgb), 0.12)",
+      }}
+    >
+      <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text)" }}>{summary}</div>
+      <div style={{ display: "flex", gap: "8px" }}>
+        <motion.button
+          onClick={onConfirm}
+          whileTap={{ scale: 0.96 }}
+          style={{
+            flex: 1,
+            height: "36px",
+            borderRadius: "10px",
+            border: "none",
+            background: "var(--accent-main)",
+            color: "#fff",
+            fontWeight: 800,
+            fontSize: "12px",
+            cursor: "pointer",
+            fontFamily: "inherit",
+            touchAction: "manipulation",
+          }}
+        >
+          Confirm
+        </motion.button>
+        <motion.button
+          onClick={onDismiss}
+          whileTap={{ scale: 0.96 }}
+          style={{
+            flex: 1,
+            height: "36px",
+            borderRadius: "10px",
+            border: "1px solid var(--border)",
+            background: "transparent",
+            color: "var(--text-faint)",
+            fontWeight: 700,
+            fontSize: "12px",
+            cursor: "pointer",
+            fontFamily: "inherit",
+            touchAction: "manipulation",
+          }}
+        >
+          Dismiss
+        </motion.button>
+      </div>
     </div>
   );
 }

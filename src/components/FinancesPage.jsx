@@ -9,9 +9,7 @@ import { fmt$, todayISO } from "../utils/formatters.js";
 import { useUndoToast } from "./UndoToast.jsx";
 
 const TXN_CATEGORIES = [
-  "Salary", "Business", "Investment", "Freelance", "Gift",
-  "Food", "Rent", "Transport", "Shopping", "Entertainment",
-  "Health", "Education", "Subscription", "Other",
+  "Salary", "Business", "Food", "Rent", "Transport", "Shopping",
 ];
 
 const monthKey = (iso) => {
@@ -54,7 +52,7 @@ export function FinancesPage({ state, setState }) {
     description: "",
     amount: 0,
     type: "expense",
-    category: "Other",
+    category: "Food",
     date: todayISO(),
   });
 
@@ -103,7 +101,7 @@ export function FinancesPage({ state, setState }) {
         ],
       },
     }));
-    setNewTxn({ description: "", amount: 0, type: "expense", category: "Other", date: todayISO() });
+    setNewTxn({ description: "", amount: 0, type: "expense", category: "Food", date: todayISO() });
     setShowAddTxn(false);
   };
 
