@@ -8,6 +8,7 @@ import { HealthPage } from "./components/HealthPage.jsx";
 import { GymPage } from "./components/GymPage.jsx";
 import { HabitsPage } from "./components/HabitsPage.jsx";
 import { AccountPage } from "./components/AccountPage.jsx";
+import { IntroAnimation } from "./components/IntroAnimation.jsx";
 import { PageSkeleton } from "./components/SkeletonLoader.jsx";
 import { AnimatedBackground } from "./components/AnimatedBackground.jsx";
 import { CircleMenu } from "./components/CircleMenu.jsx";
@@ -180,6 +181,18 @@ export default function LifeOS() {
   const [time, setTime] = useState(new Date());
   const [overseerLoading, setOverseerLoading] = useState(false);
   const [greeting, setGreeting] = useState(GREETINGS[0]);
+  // Intro overlay. Shown once per browser session on first load, and again
+  // after a successful sign-in / sign-up. Gated by sessionStorage so a tab
+  // refresh inside the same session doesn't replay it.
+  const [showIntro, setShowIntro] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return sessionStorage.getItem("lifeos.introShown") !== "1";
+    } catch {
+      return true;
+    }
+  });
+  const prevAuthStatusRef = useRef(auth?.status);
   // Active celebration event (one at a time). Set by the detection effect
   // below; cleared by Celebration's auto-dismiss or user tap.
   const [celebration, setCelebration] = useState(null);
@@ -200,6 +213,26 @@ export default function LifeOS() {
       setGreeting(GREETINGS[Math.floor(Math.random() * GREETINGS.length)]);
     }
   }, [tab]);
+
+  // Replay the intro when auth status transitions into "signed-in" — covers
+  // both fresh sign-ins and sign-ups, since signup also flips status once the
+  // session is created.
+  useEffect(() => {
+    const prev = prevAuthStatusRef.current;
+    if (prev !== "signed-in" && auth?.status === "signed-in") {
+      setShowIntro(true);
+    }
+    prevAuthStatusRef.current = auth?.status;
+  }, [auth?.status]);
+
+  const handleIntroComplete = () => {
+    try {
+      sessionStorage.setItem("lifeos.introShown", "1");
+    } catch {
+      // sessionStorage blocked (e.g. private mode) — fine, just won't gate.
+    }
+    setShowIntro(false);
+  };
 
   // Background ticker. Used only for coarse-grained day/hour rollover
   // detection and the day-progress %, neither of which needs sub-minute
@@ -668,7 +701,16 @@ export default function LifeOS() {
   };
 
   if (!isLoaded) {
-    return <PageSkeleton />;
+    return (
+      <>
+        <PageSkeleton />
+        <AnimatePresence mode="wait">
+          {showIntro && (
+            <IntroAnimation key="intro" onComplete={handleIntroComplete} />
+          )}
+        </AnimatePresence>
+      </>
+    );
   }
 
   return (
@@ -683,6 +725,9 @@ export default function LifeOS() {
         overflow: "hidden",
       }}
     >
+      <AnimatePresence>
+        {showIntro && <IntroAnimation onComplete={handleIntroComplete} />}
+      </AnimatePresence>
       <AnimatedBackground pageAccent={pageAccent} isMobile={isMobile} />
 
       {/* Top Bar - Floating Glass Pill */}

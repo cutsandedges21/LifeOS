@@ -68,6 +68,8 @@ export function AccountPage({
           subtitle="Sync your data across devices with optional cloud backup."
         />
 
+        <ProfileNameCard state={state} setState={setState} />
+
         <GlassCard
           style={{
             padding: "20px",
@@ -184,6 +186,8 @@ export function AccountPage({
       <PageShell>
         <PageHeader title="Account" />
 
+        <ProfileNameCard state={state} setState={setState} />
+
         <GlassCard style={{ padding: "20px" }}>
           <div
             style={{
@@ -287,53 +291,7 @@ export function AccountPage({
         subtitle="Sign in to back up your data and sync it across every device."
       />
 
-      <GlassCard style={{ padding: "20px", marginBottom: "16px" }}>
-        <div
-          style={{
-            fontSize: "11px",
-            fontWeight: 700,
-            marginBottom: "16px",
-            color: "var(--text-faint)",
-            fontFamily: "var(--font-mono)",
-            letterSpacing: "0.1em",
-          }}
-        >
-          PROFILE
-        </div>
-        <div>
-          <label
-            style={{
-              fontSize: "10px",
-              color: "var(--text-faint)",
-              display: "block",
-              marginBottom: "6px",
-              fontFamily: "var(--font-mono)",
-            }}
-          >
-            YOUR NAME
-          </label>
-          <input
-            type="text"
-            value={state?.user || ""}
-            onChange={(e) =>
-              setState((prev) => ({ ...prev, user: e.target.value }))
-            }
-            placeholder="Your name"
-            style={{
-              width: "100%",
-              background: "var(--input)",
-              border: "1px solid var(--border)",
-              borderRadius: "14px",
-              padding: "14px",
-              color: "var(--text)",
-              fontSize: "14px",
-              fontFamily: "var(--font-sans)",
-              outline: "none",
-              boxSizing: "border-box",
-            }}
-          />
-        </div>
-      </GlassCard>
+      <ProfileNameCard state={state} setState={setState} />
 
       <GlassCard style={{ padding: "20px" }}>
         {/* Mode toggle */}
@@ -476,6 +434,58 @@ export function AccountPage({
 }
 
 // ── Sub-components ──────────────────────────────────────────────────
+
+function ProfileNameCard({ state, setState }) {
+  return (
+    <GlassCard style={{ padding: "20px", marginBottom: "16px" }}>
+      <div
+        style={{
+          fontSize: "11px",
+          fontWeight: 700,
+          marginBottom: "16px",
+          color: "var(--text-faint)",
+          fontFamily: "var(--font-mono)",
+          letterSpacing: "0.1em",
+        }}
+      >
+        PROFILE
+      </div>
+      <div>
+        <label
+          style={{
+            fontSize: "10px",
+            color: "var(--text-faint)",
+            display: "block",
+            marginBottom: "6px",
+            fontFamily: "var(--font-mono)",
+          }}
+        >
+          YOUR NAME
+        </label>
+        <input
+          type="text"
+          value={state?.user || ""}
+          onChange={(e) =>
+            setState((prev) => ({ ...prev, user: e.target.value }))
+          }
+          placeholder="Your name"
+          style={{
+            width: "100%",
+            background: "var(--input)",
+            border: "1px solid var(--border)",
+            borderRadius: "14px",
+            padding: "14px",
+            color: "var(--text)",
+            fontSize: "14px",
+            fontFamily: "var(--font-sans)",
+            outline: "none",
+            boxSizing: "border-box",
+          }}
+        />
+      </div>
+    </GlassCard>
+  );
+}
 
 function PageShell({ children }) {
   return (
