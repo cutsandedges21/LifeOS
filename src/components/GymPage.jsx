@@ -179,6 +179,7 @@ export function GymPage({ state, setState }) {
         { id: Date.now(), date: todayISO(), reason },
         ...(prev.gymSkips || []),
       ],
+      gymVisits: (prev.gymVisits || []).filter((v) => v.date !== todayISO()),
     }));
     setSkipReason("");
     setShowSkipModal(false);

@@ -253,8 +253,11 @@ export function FinancesPage({ state, setState }) {
     .sort(sortByDateDesc);
 
   // ── All-time totals ──────────────────────────────────────────────────
+  // Subscriptions are recurring monthly burn; rolling their current monthly
+  // total into all-time expense keeps the headline net honest about ongoing
+  // commitments rather than only counting individually-logged transactions.
   const allTimeIncome  = transactions.filter((t) => t.type === "income").reduce((s, t) => s + Number(t.amount || 0), 0);
-  const allTimeExpense = transactions.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount || 0), 0);
+  const allTimeExpense = transactions.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount || 0), 0) + subTotal;
   const allTimeNet     = allTimeIncome - allTimeExpense;
 
   // 30-day net worth trend, sourced from daily snapshots written by App.jsx.

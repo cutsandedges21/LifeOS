@@ -805,6 +805,7 @@ export default function LifeOS() {
             {tab === "account" && (
               <AccountPage
                 state={state}
+                setState={setState}
                 auth={auth}
                 syncStatus={syncStatus}
                 lastSyncedAt={lastSyncedAt}
@@ -1111,44 +1112,6 @@ function SettingsPage({ state, setState, resetState }) {
 
       {/* Install + Notifications */}
       <InstallAndNotificationsCard state={state} setState={setState} />
-
-      {/* User Info */}
-      <div
-        style={{
-          background: "var(--card)",
-          backdropFilter: "blur(20px)",
-          borderRadius: "24px",
-          padding: "20px",
-          marginBottom: "16px",
-          border: "1px solid var(--border)",
-        }}
-      >
-        <div style={{ fontSize: "11px", fontWeight: 700, marginBottom: "16px", color: "var(--text-faint)", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
-          PROFILE
-        </div>
-        <div>
-          <label style={{ fontSize: "10px", color: "var(--text-faint)", display: "block", marginBottom: "6px", fontFamily: "var(--font-mono)" }}>
-            YOUR NAME
-          </label>
-          <input
-            type="text"
-            value={state.user}
-            onChange={(e) => setState((prev) => ({ ...prev, user: e.target.value }))}
-            placeholder="Your name"
-            style={{
-              width: "100%",
-              background: "var(--input)",
-              border: "1px solid var(--border)",
-              borderRadius: "14px",
-              padding: "14px",
-              color: "var(--text)",
-              fontSize: "14px",
-              fontFamily: "var(--font-sans)",
-              outline: "none",
-            }}
-          />
-        </div>
-      </div>
 
       {/* Schedule
       <div

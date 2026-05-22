@@ -16,6 +16,7 @@ const ACCENT = "#60A5FA"; // sky-blue — distinct from other page accents
 
 export function AccountPage({
   state,
+  setState,
   auth,
   syncStatus,
   lastSyncedAt,
@@ -285,6 +286,54 @@ export function AccountPage({
         title="Account & Sync"
         subtitle="Sign in to back up your data and sync it across every device."
       />
+
+      <GlassCard style={{ padding: "20px", marginBottom: "16px" }}>
+        <div
+          style={{
+            fontSize: "11px",
+            fontWeight: 700,
+            marginBottom: "16px",
+            color: "var(--text-faint)",
+            fontFamily: "var(--font-mono)",
+            letterSpacing: "0.1em",
+          }}
+        >
+          PROFILE
+        </div>
+        <div>
+          <label
+            style={{
+              fontSize: "10px",
+              color: "var(--text-faint)",
+              display: "block",
+              marginBottom: "6px",
+              fontFamily: "var(--font-mono)",
+            }}
+          >
+            YOUR NAME
+          </label>
+          <input
+            type="text"
+            value={state?.user || ""}
+            onChange={(e) =>
+              setState((prev) => ({ ...prev, user: e.target.value }))
+            }
+            placeholder="Your name"
+            style={{
+              width: "100%",
+              background: "var(--input)",
+              border: "1px solid var(--border)",
+              borderRadius: "14px",
+              padding: "14px",
+              color: "var(--text)",
+              fontSize: "14px",
+              fontFamily: "var(--font-sans)",
+              outline: "none",
+              boxSizing: "border-box",
+            }}
+          />
+        </div>
+      </GlassCard>
 
       <GlassCard style={{ padding: "20px" }}>
         {/* Mode toggle */}

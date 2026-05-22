@@ -51,9 +51,13 @@ export function HealthPage({ state, setState }) {
       ? "#34D399"
       : restPercent >= 55
       ? "#FBBF24"
-      : restPercent >= 34
-      ? "var(--accent-main)"
       : "#F87171";
+
+  const getSleepScoreColor = (score) => {
+    if (score >= 80) return "#34D399";
+    if (score >= 55) return "#FBBF24";
+    return "#F87171";
+  };
 
   // Data for the Peak Curve visualization (Current Week Mon-Sun)
   const curvePoints = getCurrentWeekSleep(entries);
@@ -173,7 +177,7 @@ export function HealthPage({ state, setState }) {
           </div>
         </div>
         <div style={{ width: "100%" }}>
-          <Sparkline data={sleepHistory} color="#34D399" width={320} height={60} strokeWidth={2} />
+          <Sparkline data={sleepHistory} color={getSleepScoreColor(sleepAvg30)} width={320} height={60} strokeWidth={2} />
         </div>
         {sleepHistory.length < 7 && (
           <div style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-faint)", marginTop: "8px", textAlign: "center", letterSpacing: "0.08em" }}>
@@ -204,17 +208,20 @@ export function HealthPage({ state, setState }) {
                       background: p === 0
                         ? "var(--card)"
                         : (() => {
-                            // p > 80 → green, > 50 → accent (themed), else → red.
-                            // Gradient builds from a low-alpha base to a high-alpha cap.
-                            const isAccent = p > 50 && p <= 80;
-                            const lo = isAccent ? "rgba(var(--accent-main-rgb),0.25)" : `${p > 80 ? "#34D399" : "#F87171"}40`;
-                            const hi = isAccent ? "rgba(var(--accent-main-rgb),0.67)" : `${p > 80 ? "#34D399" : "#F87171"}aa`;
-                            return `linear-gradient(to top, ${lo}, ${hi})`;
+                            // 80+ green, 55+ yellow, else red. Gradient builds from a
+                            // low-alpha base to a high-alpha cap.
+                            if (p >= 80) return "linear-gradient(to top, #34D39940, #34D399aa)";
+                            if (p >= 55) return "linear-gradient(to top, #FBBF2440, #FBBF24aa)";
+                            return "linear-gradient(to top, #F8717140, #F87171aa)";
                           })(),
                       borderRadius: "6px 6px 2px 2px",
                       border: p === 0
                         ? "1px dashed var(--border)"
-                        : `1px solid ${p > 80 ? "#34D39980" : p > 50 ? "rgba(var(--accent-main-rgb),0.5)" : "#F8717180"}`,
+                        : `1px solid ${
+                            p >= 80 ? "#34D39980"
+                            : p >= 55 ? "#FBBF2480"
+                            : "#F8717180"
+                          }`,
                     }}
                   />
                 </div>
