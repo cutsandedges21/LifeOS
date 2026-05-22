@@ -706,7 +706,11 @@ export default function LifeOS() {
         <PageSkeleton />
         <AnimatePresence mode="wait">
           {showIntro && (
-            <IntroAnimation key="intro" onComplete={handleIntroComplete} />
+            <IntroAnimation
+              key="intro"
+              theme={state?.theme || "dark"}
+              onComplete={handleIntroComplete}
+            />
           )}
         </AnimatePresence>
       </>
@@ -725,8 +729,14 @@ export default function LifeOS() {
         overflow: "hidden",
       }}
     >
-      <AnimatePresence>
-        {showIntro && <IntroAnimation onComplete={handleIntroComplete} />}
+      <AnimatePresence mode="wait">
+        {showIntro && (
+          <IntroAnimation
+            key="intro"
+            theme={state?.theme || "dark"}
+            onComplete={handleIntroComplete}
+          />
+        )}
       </AnimatePresence>
       <AnimatedBackground pageAccent={pageAccent} isMobile={isMobile} />
 
