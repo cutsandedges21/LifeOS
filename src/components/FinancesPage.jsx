@@ -245,9 +245,27 @@ export function FinancesPage({ state, setState }) {
     if (cmp !== 0) return cmp;
     return (b.id || 0) - (a.id || 0);
   };
-  const filteredTxns = (txnFilter === "all"
+  // Surface subscriptions as synthetic expense rows in the log so the user
+  // sees recurring burn alongside one-off transactions. They keep a _isSub
+  // flag so the × button can route to removeSub instead of removeTxn.
+  const subsAsTxns = subs.map((s) => ({
+    id: `sub-${s.id}`,
+    _isSub: true,
+    _subId: s.id,
+    description: s.name,
+    amount: Number(s.cost || 0),
+    type: "expense",
+    category: "Subscription",
+    date: s.renews || "",
+  }));
+
+  const combinedTxns = txnFilter === "income"
     ? transactions
-    : transactions.filter((t) => t.type === txnFilter)
+    : [...transactions, ...subsAsTxns];
+
+  const filteredTxns = (txnFilter === "all"
+    ? combinedTxns
+    : combinedTxns.filter((t) => t.type === txnFilter)
   )
     .slice()
     .sort(sortByDateDesc);
@@ -818,7 +836,7 @@ export function FinancesPage({ state, setState }) {
                     {t.type === "income" ? "+" : "−"}${Number(t.amount).toLocaleString()}
                   </div>
                   <button
-                    onClick={() => removeTxn(t.id)}
+                    onClick={() => (t._isSub ? removeSub(t._subId) : removeTxn(t.id))}
                     style={{ background: "none", border: "none", color: "var(--text-faint)", cursor: "pointer", fontSize: "16px" }}
                   >
                     ×
