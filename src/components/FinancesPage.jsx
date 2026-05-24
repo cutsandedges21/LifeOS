@@ -35,6 +35,7 @@ export function FinancesPage({ state, setState }) {
   const [showAddTxn, setShowAddTxn] = useState(false);
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [txnFilter, setTxnFilter] = useState("all"); // all | income | expense
+  const [hoverMonth, setHoverMonth] = useState(null); // idx of hovered chart column
   const [celebratedGoal, setCelebratedGoal] = useState(null); // { name, color }
   const { show: showUndoToast } = useUndoToast();
 
@@ -344,7 +345,7 @@ export function FinancesPage({ state, setState }) {
           </div>
         </div>
         <div style={{ width: "100%" }}>
-          <Sparkline data={netSeries} color="var(--accent-main)" width={320} height={56} strokeWidth={2} />
+          <Sparkline data={netSeries} color="var(--accent-main)" width={320} height={56} strokeWidth={2} formatValue={(v) => fmt$(v)} />
         </div>
         {netSeries.length < 7 && (
           <div style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-faint)", marginTop: "8px", textAlign: "center", letterSpacing: "0.08em" }}>
@@ -380,7 +381,39 @@ export function FinancesPage({ state, setState }) {
             const expenseH = (m.expense / chartMax) * 100;
             return (
               <div key={m.key} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
-                <div style={{ display: "flex", alignItems: "flex-end", gap: "3px", height: "110px", width: "100%", justifyContent: "center" }}>
+                <div
+                  style={{ position: "relative", display: "flex", alignItems: "flex-end", gap: "3px", height: "110px", width: "100%", justifyContent: "center", cursor: "pointer" }}
+                  onMouseEnter={() => setHoverMonth(idx)}
+                  onMouseLeave={() => setHoverMonth(null)}
+                  onTouchStart={() => setHoverMonth(idx)}
+                  onTouchEnd={() => setHoverMonth(null)}
+                >
+                  {hoverMonth === idx && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        bottom: "calc(100% + 6px)",
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        pointerEvents: "none",
+                        background: "var(--card)",
+                        border: "1px solid var(--border)",
+                        borderRadius: "8px",
+                        padding: "5px 9px",
+                        whiteSpace: "nowrap",
+                        fontFamily: "var(--font-mono)",
+                        fontSize: "10px",
+                        fontWeight: 800,
+                        textAlign: "center",
+                        boxShadow: "0 4px 14px rgba(0,0,0,0.35)",
+                        zIndex: 20,
+                      }}
+                    >
+                      <div style={{ color: "var(--text-faint)", fontWeight: 600, marginBottom: "3px" }}>{m.label.toUpperCase()}</div>
+                      <div style={{ color: "#34D399" }}>IN {fmt$(m.income)}</div>
+                      <div style={{ color: "#F87171" }}>OUT {fmt$(m.expense)}</div>
+                    </div>
+                  )}
                   <motion.div
                     initial={{ height: 0 }}
                     animate={{ height: `${incomeH}%` }}

@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 // Tiny SVG sparkline. Renders a smoothed line + soft area fill below it.
 // Empty data → faint dashed midline placeholder so layouts don't jump.
 //
@@ -5,6 +7,10 @@
 // itself fills 100% of its parent (with `responsive` true, default) so it
 // scales to any container without distorting. Pass responsive={false} to
 // pin to literal pixel dimensions instead.
+//
+// Hovering (or tapping on touch) any point shows a small tooltip with that
+// point's value. Pass `formatValue` to customize the text and `labels` to
+// add a per-point caption (e.g. a date) above the value.
 export function Sparkline({
   data = [],
   color = "currentColor",
@@ -13,7 +19,11 @@ export function Sparkline({
   fill = true,
   strokeWidth = 1.6,
   responsive = true,
+  formatValue = (v) => `${v}`,
+  labels = null,
 }) {
+  const [hoverIdx, setHoverIdx] = useState(null);
+
   const svgProps = responsive
     ? {
         viewBox: `0 0 ${width} ${height}`,
@@ -59,46 +69,103 @@ export function Sparkline({
   // Random id keeps gradient defs unique per instance.
   const gradId = `spark-${Math.random().toString(36).slice(2, 8)}`;
 
+  // Horizontal position (as a %) of the hovered point, used to pin the
+  // HTML tooltip + a marker line independent of the SVG's stretch.
+  const hoverPct = hoverIdx != null && data.length > 1 ? (hoverIdx / (data.length - 1)) * 100 : 0;
+
   return (
-    <svg {...svgProps}>
-      {fill && (
-        <>
-          <defs>
-            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={color} stopOpacity="0.35" />
-              <stop offset="100%" stopColor={color} stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          <path d={areaPath} fill={`url(#${gradId})`} />
-        </>
-      )}
-      {/* vectorEffect keeps the line a constant pixel width even when the
-          SVG is stretched non-uniformly by preserveAspectRatio="none". */}
-      <path
-        d={linePath}
-        fill="none"
-        stroke={color}
-        strokeWidth={strokeWidth}
-        strokeLinejoin="round"
-        strokeLinecap="round"
-        vectorEffect="non-scaling-stroke"
-      />
-      {/* One round dot per data point so each day reads as a distinct point.
-          Drawn as zero-length round-capped paths with non-scaling-stroke so
-          they stay perfectly circular even when the SVG is stretched
-          horizontally by preserveAspectRatio="none" — a plain <circle> gets
-          squashed into a wide ellipse on big screens. */}
-      {pts.map(([x, y], i) => (
+    <div
+      style={{ position: "relative", width: responsive ? "100%" : width }}
+      onMouseLeave={() => setHoverIdx(null)}
+      onTouchEnd={() => setHoverIdx(null)}
+    >
+      <svg {...svgProps}>
+        {fill && (
+          <>
+            <defs>
+              <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={color} stopOpacity="0.35" />
+                <stop offset="100%" stopColor={color} stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            <path d={areaPath} fill={`url(#${gradId})`} />
+          </>
+        )}
+        {/* vectorEffect keeps the line a constant pixel width even when the
+            SVG is stretched non-uniformly by preserveAspectRatio="none". */}
         <path
-          key={i}
-          d={`M${x.toFixed(1)},${y.toFixed(1)} L${x.toFixed(1)},${y.toFixed(1)}`}
+          d={linePath}
+          fill="none"
           stroke={color}
-          strokeWidth={i === pts.length - 1 ? strokeWidth * 3.6 : strokeWidth * 2.4}
+          strokeWidth={strokeWidth}
+          strokeLinejoin="round"
           strokeLinecap="round"
           vectorEffect="non-scaling-stroke"
-          fill="none"
         />
-      ))}
-    </svg>
+        {/* One round dot per data point so each day reads as a distinct point.
+            Drawn as zero-length round-capped paths with non-scaling-stroke so
+            they stay perfectly circular even when the SVG is stretched
+            horizontally by preserveAspectRatio="none" — a plain <circle> gets
+            squashed into a wide ellipse on big screens. */}
+        {pts.map(([x, y], i) => {
+          const active = i === hoverIdx;
+          const base = i === pts.length - 1 ? strokeWidth * 3.6 : strokeWidth * 2.4;
+          return (
+            <path
+              key={i}
+              d={`M${x.toFixed(1)},${y.toFixed(1)} L${x.toFixed(1)},${y.toFixed(1)}`}
+              stroke={color}
+              strokeWidth={active ? strokeWidth * 4.6 : base}
+              strokeLinecap="round"
+              vectorEffect="non-scaling-stroke"
+              fill="none"
+            />
+          );
+        })}
+      </svg>
+
+      {/* Invisible equal-width hit zones — one per point — capture hover/tap
+          without depending on the stretched SVG coordinate space. */}
+      <div style={{ position: "absolute", inset: 0, display: "flex" }}>
+        {data.map((_, i) => (
+          <div
+            key={i}
+            style={{ flex: 1, cursor: "pointer" }}
+            onMouseEnter={() => setHoverIdx(i)}
+            onTouchStart={() => setHoverIdx(i)}
+          />
+        ))}
+      </div>
+
+      {hoverIdx != null && (
+        <div
+          style={{
+            position: "absolute",
+            left: `${hoverPct}%`,
+            top: 0,
+            transform: `translate(-50%, calc(-100% - 6px))`,
+            pointerEvents: "none",
+            background: "var(--card, rgba(20,20,24,0.95))",
+            border: `1px solid ${color}`,
+            borderRadius: "8px",
+            padding: "4px 8px",
+            whiteSpace: "nowrap",
+            fontFamily: "var(--font-mono)",
+            fontSize: "10px",
+            fontWeight: 800,
+            color: "var(--text, #fff)",
+            boxShadow: "0 4px 14px rgba(0,0,0,0.35)",
+            zIndex: 20,
+          }}
+        >
+          {labels && labels[hoverIdx] != null && (
+            <div style={{ color: "var(--text-faint)", fontWeight: 600, marginBottom: "2px" }}>
+              {labels[hoverIdx]}
+            </div>
+          )}
+          <div style={{ color }}>{formatValue(data[hoverIdx], hoverIdx)}</div>
+        </div>
+      )}
+    </div>
   );
 }

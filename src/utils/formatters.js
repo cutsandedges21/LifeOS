@@ -133,24 +133,31 @@ export const getWeeklyRestPercent = (entries) => {
   return Math.round(totalAverage);
 };
 
+// Returns 7 entries (Mon→Sun) for the current week, each shaped as
+// { score, hours, dateStr }. Days with no logged sleep get score/hours 0.
 export const getCurrentWeekSleep = (entries) => {
-  const weekScores = [];
+  const week = [];
   const today = new Date();
-  
+
   // Find this week's Monday
   const day = today.getDay(); // 0 (Sun) to 6 (Sat)
   const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
   const monday = new Date(today);
   monday.setDate(diff);
-  
+
   for (let i = 0; i < 7; i++) {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
     const dateStr = d.toLocaleDateString('en-CA');
-    
+
     const entry = entries.find(e => e.date === dateStr);
-    weekScores.push(entry ? entry.score : 0);
+    const hours = entry
+      ? (entry.bedtime && entry.wakeTime
+          ? calculateSleepHours(entry.bedtime, entry.wakeTime)
+          : Math.round((entry.score / 100) * 8 * 10) / 10)
+      : 0;
+    week.push({ score: entry ? entry.score : 0, hours, dateStr });
   }
-  
-  return weekScores;
+
+  return week;
 };

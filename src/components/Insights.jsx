@@ -17,7 +17,7 @@ function fmtCompact(n) {
 // Compact 4-up trend tiles + a single weekly review card. Both feed off
 // state.historySnapshots which App.jsx upserts daily.
 
-function TrendTile({ label, current, data, color, delta, formatDelta }) {
+function TrendTile({ label, current, data, color, delta, formatDelta, formatValue }) {
   const deltaText = formatDelta && delta != null ? formatDelta(delta) : Math.abs(delta ?? 0);
   return (
     <div
@@ -81,7 +81,7 @@ function TrendTile({ label, current, data, color, delta, formatDelta }) {
       </div>
 
       {/* Sparkline spans full tile width below the value. */}
-      <Sparkline data={data} color={color} width={140} height={26} strokeWidth={1.8} />
+      <Sparkline data={data} color={color} width={140} height={26} strokeWidth={1.8} formatValue={formatValue} />
     </div>
   );
 }
@@ -107,6 +107,7 @@ export function TrendsCard({ snapshots, currentSleep, currentNet }) {
           color="#34D399"
           delta={sleepDelta}
           formatDelta={(d) => `${Math.abs(d)}%`}
+          formatValue={(v) => `${(v / 100 * 8).toFixed(1)}h · ${v}%`}
         />
         <TrendTile
           label="NET WORTH"
@@ -115,6 +116,7 @@ export function TrendsCard({ snapshots, currentSleep, currentNet }) {
           color="var(--accent-main)"
           delta={netDeltaRaw}
           formatDelta={(d) => fmtCompact(Math.abs(d))}
+          formatValue={(v) => fmtCompact(v)}
         />
       </div>
     </GlassCard>

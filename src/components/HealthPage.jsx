@@ -14,6 +14,7 @@ import {
 export function HealthPage({ state, setState }) {
   const [bedtime, setBedtime] = useState(state.settings?.sleepTime || "23:00");
   const [wakeTime, setWakeTime] = useState(state.settings?.wakeTime || "07:00");
+  const [hoverDay, setHoverDay] = useState(null);
 
   const entries = state.sleepEntries || [];
   const restPercent = getWeeklyRestPercent(entries);
@@ -177,7 +178,14 @@ export function HealthPage({ state, setState }) {
           </div>
         </div>
         <div style={{ width: "100%" }}>
-          <Sparkline data={sleepHistory} color={getSleepScoreColor(sleepAvg30)} width={320} height={60} strokeWidth={2} />
+          <Sparkline
+            data={sleepHistory}
+            color={getSleepScoreColor(sleepAvg30)}
+            width={320}
+            height={60}
+            strokeWidth={2}
+            formatValue={(v) => `${(v / 100 * 8).toFixed(1)}h · ${v}%`}
+          />
         </div>
         {sleepHistory.length < 7 && (
           <div style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-faint)", marginTop: "8px", textAlign: "center", letterSpacing: "0.08em" }}>
@@ -190,15 +198,47 @@ export function HealthPage({ state, setState }) {
       <GlassCard style={{ marginTop: "24px", padding: "20px", marginBottom: "40px" }}>
         <SectionLabel accent="var(--accent-main)">WEEKLY PEAK CURVE</SectionLabel>
         <div style={{ height: "120px", width: "100%", marginTop: "20px", display: "flex", alignItems: "flex-end", gap: "8px" }}>
-          {curvePoints.map((p, i) => {
+          {curvePoints.map((pt, i) => {
+            const p = pt.score;
             const dayLabels = ["M", "T", "W", "T", "F", "S", "S"];
             const today = new Date();
             const todayDay = today.getDay(); // 0-6
             const adjustedTodayIndex = todayDay === 0 ? 6 : todayDay - 1; // Mon=0, Sun=6
-            
+            const barColor = p >= 80 ? "#34D399" : p >= 55 ? "#FBBF24" : "#F87171";
+
             return (
               <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
-                <div style={{ width: "100%", position: "relative", height: "100px", display: "flex", alignItems: "flex-end" }}>
+                <div
+                  style={{ width: "100%", position: "relative", height: "100px", display: "flex", alignItems: "flex-end", cursor: "pointer" }}
+                  onMouseEnter={() => setHoverDay(i)}
+                  onMouseLeave={() => setHoverDay(null)}
+                  onTouchStart={() => setHoverDay(i)}
+                  onTouchEnd={() => setHoverDay(null)}
+                >
+                  {hoverDay === i && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        bottom: "calc(100% + 6px)",
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        pointerEvents: "none",
+                        background: "var(--card)",
+                        border: `1px solid ${p === 0 ? "var(--border)" : barColor}`,
+                        borderRadius: "8px",
+                        padding: "4px 8px",
+                        whiteSpace: "nowrap",
+                        fontFamily: "var(--font-mono)",
+                        fontSize: "10px",
+                        fontWeight: 800,
+                        color: p === 0 ? "var(--text-faint)" : barColor,
+                        boxShadow: "0 4px 14px rgba(0,0,0,0.35)",
+                        zIndex: 20,
+                      }}
+                    >
+                      {p === 0 ? "NO LOG" : `${pt.hours}h · ${p}%`}
+                    </div>
+                  )}
                   <motion.div
                     initial={{ height: 0 }}
                     animate={{ height: `${p}%` }}
@@ -217,11 +257,7 @@ export function HealthPage({ state, setState }) {
                       borderRadius: "6px 6px 2px 2px",
                       border: p === 0
                         ? "1px dashed var(--border)"
-                        : `1px solid ${
-                            p >= 80 ? "#34D39980"
-                            : p >= 55 ? "#FBBF2480"
-                            : "#F8717180"
-                          }`,
+                        : `1px solid ${barColor}80`,
                     }}
                   />
                 </div>
