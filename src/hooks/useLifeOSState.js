@@ -78,6 +78,14 @@ const INITIAL_STATE = {
   // visit. Schema: { id, date, dayOfWeek, exercises: [{ name, weight, sets, reps }] }.
   // Read by GymPage to render per-exercise trend strings like "225 → 230 → 235".
   gymExerciseLog: [],
+  // ── Per-session exercise progress ───────────────────────────────────
+  // Live per-DATE checkoff + note state for the day's workout, keyed by
+  // ISO date → exercise id → { done, note }. Kept separate from the
+  // gymExercises template (the reusable weekly plan) so checks/notes reset
+  // automatically each day instead of polluting the plan. Completing every
+  // exercise auto-logs the gym visit. Pruned to a 14-day window. See
+  // src/utils/gymSession.js.
+  gymSessionLog: {},
   // ── Notifications ───────────────────────────────────────────────────
   // User opt-in for the daily Overseer reminder + renewal nudges.
   // Permission state itself lives in Notification.permission; this gate

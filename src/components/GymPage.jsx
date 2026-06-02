@@ -11,6 +11,18 @@ import { Input, Button } from "./UI.jsx";
 import { lastNSnapshots } from "../utils/snapshots.js";
 import { getTodayDay, todayISO } from "../utils/formatters.js";
 import { useUndoToast } from "./UndoToast.jsx";
+import {
+  getSessionProgress,
+  isExerciseDone,
+  exerciseNote,
+  completedCount,
+  isSessionComplete,
+  toggleDone,
+  setNote,
+  cleanupExercise,
+  pruneSessionLog,
+  syncAutoVisit,
+} from "../utils/gymSession.js";
 
 export function GymPage({ state, setState }) {
   const [selectedDay, setSelectedDay] = useState(getTodayDay());
@@ -38,7 +50,19 @@ export function GymPage({ state, setState }) {
   const [editingExerciseId, setEditingExerciseId] = useState(null);
   const [editDraft, setEditDraft] = useState({ name: "", weight: "", sets: "", reps: "" });
 
+  // Inline note-edit state (today's session only). editingNoteId points to the
+  // exercise whose note is open; noteDraft holds the working text.
+  const [editingNoteId, setEditingNoteId] = useState(null);
+  const [noteDraft, setNoteDraft] = useState("");
+
   const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+
+  // Today's date + whether the selected day IS today. Per-exercise checkoffs
+  // and notes only apply to today's session; other days show the read-only
+  // template. sessionProgress maps exercise id → { done, note } for today.
+  const today = todayISO();
+  const isToday = selectedDay === getTodayDay();
+  const sessionProgress = getSessionProgress(state.gymSessionLog, today);
 
   const updateSplit = (val) => {
     setState((prev) => {
@@ -56,16 +80,47 @@ export function GymPage({ state, setState }) {
     if (!newExercise.name.trim()) return;
     setState((prev) => {
       const currentExercises = prev.gymExercises?.[selectedDay] || [];
-      return {
+      const next = {
         ...prev,
         gymExercises: {
           ...prev.gymExercises,
           [selectedDay]: [...currentExercises, { ...newExercise, id: Date.now() }],
         },
       };
+      // A new (unchecked) exercise can drop today's session below complete.
+      return syncAutoVisit(next);
     });
     setNewExercise({ name: "", weight: "", reps: "", sets: "" });
     setShowAddExercise(false);
+  };
+
+  // Toggle an exercise's done flag for today, then reconcile the auto gym
+  // visit (all checked ⇒ streak active). Only meaningful for today's session.
+  const toggleExerciseDone = (id) => {
+    setState((prev) => {
+      const gymSessionLog = pruneSessionLog(toggleDone(prev.gymSessionLog, today, id));
+      return syncAutoVisit({ ...prev, gymSessionLog });
+    });
+  };
+
+  const startEditNote = (ex) => {
+    setEditingNoteId(ex.id);
+    setNoteDraft(exerciseNote(sessionProgress, ex.id));
+  };
+
+  const cancelEditNote = () => {
+    setEditingNoteId(null);
+    setNoteDraft("");
+  };
+
+  const saveNote = () => {
+    const id = editingNoteId;
+    if (id == null) return;
+    setState((prev) => ({
+      ...prev,
+      gymSessionLog: pruneSessionLog(setNote(prev.gymSessionLog, today, id, noteDraft)),
+    }));
+    cancelEditNote();
   };
 
   // Delete + undo. The exercise is scoped to a specific day, so the undo
@@ -77,24 +132,34 @@ export function GymPage({ state, setState }) {
     const index = list.findIndex((e) => e.id === id);
     if (index === -1) return;
     const removed = list[index];
-    setState((prev) => ({
-      ...prev,
-      gymExercises: {
-        ...prev.gymExercises,
-        [day]: (prev.gymExercises?.[day] || []).filter((e) => e.id !== id),
-      },
-    }));
+    setState((prev) => {
+      const next = {
+        ...prev,
+        gymExercises: {
+          ...prev.gymExercises,
+          [day]: (prev.gymExercises?.[day] || []).filter((e) => e.id !== id),
+        },
+        // Drop any checkoff/note for the removed exercise so it can't linger.
+        gymSessionLog: cleanupExercise(prev.gymSessionLog, today, id),
+      };
+      // Removing an exercise changes the completion set (e.g. deleting the
+      // last unchecked one may complete the session, or vice versa).
+      return syncAutoVisit(next);
+    });
     const label = (removed.name || "").trim() || "exercise";
     showUndoToast(`Deleted "${label}"`, () => {
       setState((prev) => {
         const current = prev.gymExercises?.[day] || [];
         if (current.some((e) => e.id === removed.id)) return prev;
-        const next = [...current];
-        next.splice(Math.min(index, next.length), 0, removed);
-        return {
+        const restored = [...current];
+        restored.splice(Math.min(index, restored.length), 0, removed);
+        const next = {
           ...prev,
-          gymExercises: { ...prev.gymExercises, [day]: next },
+          gymExercises: { ...prev.gymExercises, [day]: restored },
         };
+        // Restoring an (unchecked) exercise can drop the session below
+        // complete again — reconcile the auto visit.
+        return syncAutoVisit(next);
       });
     });
   };
@@ -260,6 +325,17 @@ export function GymPage({ state, setState }) {
   const skippedToday = (state.gymSkips || []).some((s) => s.date === todayISO());
   const visitedToday = (state.gymVisits || []).some((v) => v.date === todayISO());
 
+  // Today's session completion — drives the auto-hit status block. Always
+  // reflects TODAY regardless of which day is selected for viewing/editing.
+  const todayExercises = state.gymExercises?.[getTodayDay()] || [];
+  const todayProgress = getSessionProgress(state.gymSessionLog, today);
+  const todayDoneCount = completedCount(todayExercises, todayProgress);
+  const hasExercisesToday = todayExercises.length > 0;
+
+  // Progress for the SESSION header — only meaningful when viewing today.
+  const selectedDoneCount = isToday ? completedCount(currentExercises, sessionProgress) : 0;
+  const selectedComplete = isToday ? isSessionComplete(currentExercises, sessionProgress) : false;
+
   // 14-day attendance history pulled from snapshots. Each cell is binary
   // (went / didn't), rendered as a row of small bars so patterns are obvious
   // at a glance.
@@ -421,21 +497,38 @@ export function GymPage({ state, setState }) {
           label={`${selectedDay.toUpperCase()} SESSION`}
           accent="#FBBF24"
           right={
-            <button
-              onClick={() => setShowAddExercise(true)}
-              style={{
-                background: "rgba(251, 191, 36, 0.15)",
-                border: "1px solid rgba(251, 191, 36, 0.3)",
-                borderRadius: "8px",
-                color: "#FBBF24",
-                padding: "4px 10px",
-                fontSize: "11px",
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
-              + ADD
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              {isToday && currentExercises.length > 0 && (
+                <span
+                  style={{
+                    fontSize: "10px",
+                    fontFamily: "var(--font-mono)",
+                    fontWeight: 800,
+                    letterSpacing: "0.08em",
+                    color: selectedComplete ? "#34D399" : "var(--text-muted)",
+                  }}
+                >
+                  {selectedComplete
+                    ? "✓ COMPLETE"
+                    : `${selectedDoneCount}/${currentExercises.length} DONE`}
+                </span>
+              )}
+              <button
+                onClick={() => setShowAddExercise(true)}
+                style={{
+                  background: "rgba(251, 191, 36, 0.15)",
+                  border: "1px solid rgba(251, 191, 36, 0.3)",
+                  borderRadius: "8px",
+                  color: "#FBBF24",
+                  padding: "4px 10px",
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                + ADD
+              </button>
+            </div>
           }
         />
 
@@ -522,6 +615,17 @@ export function GymPage({ state, setState }) {
                 onCancelEdit={cancelEditExercise}
                 onSaveEdit={saveEditExercise}
                 onRemove={() => removeExercise(e.id)}
+                /* Per-session checkoff + note — today only. */
+                interactive={isToday}
+                done={isToday && isExerciseDone(sessionProgress, e.id)}
+                note={isToday ? exerciseNote(sessionProgress, e.id) : ""}
+                onToggleDone={() => toggleExerciseDone(e.id)}
+                isNoteEditing={editingNoteId === e.id}
+                noteDraft={noteDraft}
+                setNoteDraft={setNoteDraft}
+                onStartNote={() => startEditNote(e)}
+                onCancelNote={cancelEditNote}
+                onSaveNote={saveNote}
               />
             );
           })}
@@ -536,6 +640,10 @@ export function GymPage({ state, setState }) {
       {/* ── Today's Gym Status ─────────────────────────────────────── */}
       <div style={{ marginTop: "32px", display: "flex", flexDirection: "column", gap: "10px" }}>
         {visitedToday ? (
+          // Green "hit" block. When today's session has exercises, the visit
+          // is driven by the checklist (auto) — undo by unchecking, so we show
+          // a hint instead of an UNDO button. With no exercises the visit was
+          // logged manually, so keep the explicit UNDO.
           <div
             style={{
               width: "100%",
@@ -551,29 +659,43 @@ export function GymPage({ state, setState }) {
               letterSpacing: "0.08em",
               boxShadow: "0 4px 20px rgba(52,211,153,0.15)",
               display: "flex",
+              flexDirection: hasExercisesToday ? "column" : "row",
               alignItems: "center",
               justifyContent: "center",
-              gap: "12px",
+              gap: hasExercisesToday ? "6px" : "12px",
             }}
           >
             <span>✓ GYM HIT TODAY · STREAK ACTIVE</span>
-            <button
-              onClick={undoToday}
-              style={{
-                background: "rgba(52, 211, 153, 0.15)",
-                border: "1px solid rgba(52, 211, 153, 0.5)",
-                color: "#34D399",
-                borderRadius: "10px",
-                padding: "5px 10px",
-                fontSize: "10px",
-                fontWeight: 800,
-                cursor: "pointer",
-                fontFamily: "var(--font-mono)",
-                letterSpacing: "0.08em",
-              }}
-            >
-              UNDO
-            </button>
+            {hasExercisesToday ? (
+              <span
+                style={{
+                  fontSize: "9px",
+                  fontWeight: 600,
+                  color: "rgba(52, 211, 153, 0.7)",
+                  letterSpacing: "0.08em",
+                }}
+              >
+                ALL {todayExercises.length} EXERCISES DONE · UNCHECK ONE TO UNDO
+              </span>
+            ) : (
+              <button
+                onClick={undoToday}
+                style={{
+                  background: "rgba(52, 211, 153, 0.15)",
+                  border: "1px solid rgba(52, 211, 153, 0.5)",
+                  color: "#34D399",
+                  borderRadius: "10px",
+                  padding: "5px 10px",
+                  fontSize: "10px",
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  fontFamily: "var(--font-mono)",
+                  letterSpacing: "0.08em",
+                }}
+              >
+                UNDO
+              </button>
+            )}
           </div>
         ) : skippedToday ? (
           <div
@@ -614,6 +736,80 @@ export function GymPage({ state, setState }) {
               UNDO
             </button>
           </div>
+        ) : hasExercisesToday ? (
+          // Today has a planned session — the checklist above IS the "hit"
+          // mechanism. Show live progress instead of a manual hit button;
+          // completing every exercise auto-banks the streak. SKIP stays.
+          <>
+            <div
+              style={{
+                width: "100%",
+                padding: "16px",
+                borderRadius: "16px",
+                border: "1px solid rgba(251, 191, 36, 0.30)",
+                background: "rgba(251, 191, 36, 0.08)",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  justifyContent: "center",
+                  gap: "6px",
+                  fontFamily: "var(--font-mono)",
+                }}
+              >
+                <span style={{ fontSize: "20px", fontWeight: 900, color: "#FBBF24", letterSpacing: "-0.02em" }}>
+                  {todayDoneCount}
+                </span>
+                <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-muted)" }}>
+                  / {todayExercises.length} EXERCISES DONE
+                </span>
+              </div>
+              <div style={{ marginTop: "10px", height: "4px", background: "var(--card-mid)", borderRadius: "3px", overflow: "hidden" }}>
+                <motion.div
+                  initial={false}
+                  animate={{ width: `${Math.round((todayDoneCount / todayExercises.length) * 100)}%` }}
+                  transition={{ duration: 0.4, ease: "easeOut" }}
+                  style={{ height: "100%", background: "linear-gradient(90deg, #FBBF24, #F59E0B)", borderRadius: "3px" }}
+                />
+              </div>
+              <div
+                style={{
+                  marginTop: "10px",
+                  textAlign: "center",
+                  fontSize: "10px",
+                  fontFamily: "var(--font-mono)",
+                  letterSpacing: "0.06em",
+                  color: "var(--text-faint)",
+                }}
+              >
+                COMPLETE ALL TO BANK YOUR STREAK
+              </div>
+            </div>
+
+            <motion.button
+              onClick={() => setShowSkipModal(true)}
+              whileTap={{ scale: 0.97 }}
+              whileHover={{ scale: 1.01 }}
+              style={{
+                width: "100%",
+                padding: "16px",
+                borderRadius: "16px",
+                border: "1px solid rgba(248, 113, 113, 0.45)",
+                background: "linear-gradient(135deg, rgba(248,113,113,0.18) 0%, rgba(239,68,68,0.22) 100%)",
+                color: "#F87171",
+                fontSize: "14px",
+                fontWeight: 800,
+                cursor: "pointer",
+                letterSpacing: "0.08em",
+                fontFamily: "var(--font-mono)",
+                boxShadow: "0 4px 20px rgba(248,113,113,0.18)",
+              }}
+            >
+              GYM SKIPPED TODAY · STREAK RESET
+            </motion.button>
+          </>
         ) : (
           <>
             <motion.button
@@ -759,6 +955,10 @@ export function GymPage({ state, setState }) {
 // the app — same drag distance, same color story (accent for edit, red for
 // destroy). When isEditing flips true the row morphs into an inline form so
 // the user can adjust name/weight/sets/reps without leaving the list.
+//
+// When `interactive` (today's session), the row also gets a left check circle
+// to mark the exercise done and a per-session note affordance. Both are
+// distinct tap targets so they don't fight the horizontal drag gesture.
 function SwipeableExerciseRow({
   ex,
   idx,
@@ -772,9 +972,23 @@ function SwipeableExerciseRow({
   onCancelEdit,
   onSaveEdit,
   onRemove,
+  interactive = false,
+  done = false,
+  note = "",
+  onToggleDone,
+  isNoteEditing = false,
+  noteDraft = "",
+  setNoteDraft,
+  onStartNote,
+  onCancelNote,
+  onSaveNote,
 }) {
   const x = useMotionValue(0);
   const opacity = useTransform(x, [0, -40], [0, 1]);
+
+  // Stop a tap/drag on the interactive controls from also starting the row's
+  // horizontal swipe.
+  const stopDrag = (e) => e.stopPropagation();
 
   const handleEditClick = () => {
     animate(x, 0, { duration: 0.3 });
@@ -894,78 +1108,201 @@ function SwipeableExerciseRow({
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: idx * 0.05 }}
           style={{
-            background: "var(--card)",
+            background: done ? "rgba(52, 211, 153, 0.07)" : "var(--card)",
             backdropFilter: "blur(12px)",
             borderRadius: "16px",
             padding: "16px",
-            border: "1px solid var(--border)",
+            border: `1px solid ${done ? "rgba(52, 211, 153, 0.4)" : "var(--border)"}`,
+            opacity: done ? 0.82 : 1,
+            transition: "background 0.2s, border 0.2s, opacity 0.2s",
           }}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--text)" }}>{ex.name}</div>
-              <div style={{ display: "flex", gap: "12px", marginTop: "4px" }}>
-                <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-                  <span style={{ color: "var(--text)", fontWeight: 600 }}>{ex.sets}</span> sets
+          <div style={{ display: "flex", alignItems: "flex-start", gap: "13px" }}>
+            {/* Check circle — today's session only. */}
+            {interactive && (
+              <button
+                onClick={onToggleDone}
+                onPointerDownCapture={stopDrag}
+                aria-label={done ? "Mark not done" : "Mark done"}
+                style={{
+                  flexShrink: 0,
+                  width: "26px",
+                  height: "26px",
+                  marginTop: "1px",
+                  borderRadius: "50%",
+                  border: `2px solid ${done ? "#34D399" : "var(--border-high)"}`,
+                  background: done ? "#34D399" : "transparent",
+                  color: "#04231a",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: 900,
+                  lineHeight: 1,
+                  padding: 0,
+                  transition: "all 0.15s",
+                }}
+              >
+                {done ? "✓" : ""}
+              </button>
+            )}
+
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div
+                    style={{
+                      fontSize: "16px",
+                      fontWeight: 700,
+                      color: done ? "var(--text-muted)" : "var(--text)",
+                      textDecoration: done ? "line-through" : "none",
+                    }}
+                  >
+                    {ex.name}
+                  </div>
+                  <div style={{ display: "flex", gap: "12px", marginTop: "4px" }}>
+                    <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                      <span style={{ color: "var(--text)", fontWeight: 600 }}>{ex.sets}</span> sets
+                    </div>
+                    <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                      <span style={{ color: "var(--text)", fontWeight: 600 }}>{ex.reps}</span> reps
+                    </div>
+                  </div>
                 </div>
-                <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-                  <span style={{ color: "var(--text)", fontWeight: 600 }}>{ex.reps}</span> reps
+                <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: "18px", fontWeight: 800, color: "#FBBF24" }}>{ex.weight}</div>
+                    <div style={{ fontSize: "9px", color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>LOAD (LBS)</div>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: "18px", fontWeight: 800, color: "#FBBF24" }}>{ex.weight}</div>
-                <div style={{ fontSize: "9px", color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>LOAD (LBS)</div>
-              </div>
+
+              {/* Progressive overload trend — only shown once a real history
+                  exists (≥2 deduped points). */}
+              {trend.length >= 2 && (
+                <div style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  marginTop: "12px",
+                  paddingTop: "10px",
+                  borderTop: "1px solid var(--border)",
+                }}>
+                  <div style={{
+                    fontSize: "9px",
+                    fontFamily: "var(--font-mono)",
+                    color: "var(--text-faint)",
+                    letterSpacing: "0.1em",
+                    fontWeight: 700,
+                    flexShrink: 0,
+                  }}>
+                    OVERLOAD
+                  </div>
+                  <div style={{
+                    flex: 1,
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "12px",
+                    color: "var(--text-muted)",
+                    letterSpacing: "0.02em",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}>
+                    {trend.join(" → ")}
+                  </div>
+                  <div style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "11px",
+                    fontWeight: 800,
+                    color: trendColor,
+                    flexShrink: 0,
+                  }}>
+                    {trendDelta > 0 ? "▲ +" : trendDelta < 0 ? "▼ −" : "•"}
+                    {trendDelta !== 0 ? Math.abs(trendDelta) : ""}
+                  </div>
+                </div>
+              )}
+
+              {/* Per-session note — today only. Edit inline; show when present;
+                  otherwise a muted "add note" affordance. */}
+              {interactive && (
+                isNoteEditing ? (
+                  <div
+                    onPointerDownCapture={stopDrag}
+                    style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px solid var(--border)" }}
+                  >
+                    <textarea
+                      autoFocus
+                      value={noteDraft}
+                      onChange={(e) => setNoteDraft(e.target.value)}
+                      placeholder="How did it feel? Form cues, tweaks, PRs…"
+                      style={{
+                        width: "100%",
+                        background: "rgba(0,0,0,0.25)",
+                        border: "1px solid rgba(251,191,36,0.4)",
+                        borderRadius: "10px",
+                        padding: "10px",
+                        color: "var(--text)",
+                        fontSize: "13px",
+                        minHeight: "60px",
+                        resize: "none",
+                        fontFamily: "inherit",
+                        boxSizing: "border-box",
+                        outline: "none",
+                      }}
+                    />
+                    <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                      <Button onClick={onSaveNote} style={{ flex: 2, background: "#FBBF24", color: "#000" }}>Save note</Button>
+                      <Button onClick={onCancelNote} variant="ghost" style={{ flex: 1 }}>Cancel</Button>
+                    </div>
+                  </div>
+                ) : note ? (
+                  <button
+                    onClick={onStartNote}
+                    onPointerDownCapture={stopDrag}
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: "6px",
+                      marginTop: "12px",
+                      padding: "8px 10px",
+                      width: "100%",
+                      textAlign: "left",
+                      background: "rgba(251,191,36,0.06)",
+                      border: "1px solid rgba(251,191,36,0.18)",
+                      borderRadius: "10px",
+                      color: "var(--text-muted)",
+                      fontSize: "12px",
+                      lineHeight: 1.4,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <span style={{ flexShrink: 0 }}>📝</span>
+                    <span style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{note}</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={onStartNote}
+                    onPointerDownCapture={stopDrag}
+                    style={{
+                      marginTop: "10px",
+                      padding: "4px 0",
+                      background: "none",
+                      border: "none",
+                      color: "var(--text-faint)",
+                      fontSize: "11px",
+                      fontFamily: "var(--font-mono)",
+                      letterSpacing: "0.06em",
+                      cursor: "pointer",
+                    }}
+                  >
+                    ✎ note
+                  </button>
+                )
+              )}
             </div>
           </div>
-
-          {/* Progressive overload trend — only shown once a real history
-              exists (≥2 deduped points). */}
-          {trend.length >= 2 && (
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-              marginTop: "12px",
-              paddingTop: "10px",
-              borderTop: "1px solid var(--border)",
-            }}>
-              <div style={{
-                fontSize: "9px",
-                fontFamily: "var(--font-mono)",
-                color: "var(--text-faint)",
-                letterSpacing: "0.1em",
-                fontWeight: 700,
-                flexShrink: 0,
-              }}>
-                OVERLOAD
-              </div>
-              <div style={{
-                flex: 1,
-                fontFamily: "var(--font-mono)",
-                fontSize: "12px",
-                color: "var(--text-muted)",
-                letterSpacing: "0.02em",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}>
-                {trend.join(" → ")}
-              </div>
-              <div style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: "11px",
-                fontWeight: 800,
-                color: trendColor,
-                flexShrink: 0,
-              }}>
-                {trendDelta > 0 ? "▲ +" : trendDelta < 0 ? "▼ −" : "•"}
-                {trendDelta !== 0 ? Math.abs(trendDelta) : ""}
-              </div>
-            </div>
-          )}
         </motion.div>
       </motion.div>
     </div>
