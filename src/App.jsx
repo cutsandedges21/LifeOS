@@ -14,6 +14,11 @@ import { AnimatedBackground } from "./components/AnimatedBackground.jsx";
 import { CircleMenu } from "./components/CircleMenu.jsx";
 import { Celebration } from "./components/Celebration.jsx";
 import { Clock } from "./components/Clock.jsx";
+import { LegalPage } from "./components/LegalPage.jsx";
+import { Toggle } from "./components/UI.jsx";
+import { legalDocs } from "./content/legal.js";
+import { useClickSound } from "./hooks/useClickSound.js";
+import { playClick } from "./utils/sound.js";
 import { getPageAccent, getPageTint, cssVarsForTheme } from "./theme/index.js";
 import { dayStr, getTodayDay, todayISO, isoFromDate } from "./utils/formatters.js";
 import {
@@ -206,6 +211,11 @@ export default function LifeOS() {
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
+
+  // Global click sounds — one document-level listener ticks on any control
+  // press while enabled (default on; muted from Settings → Sound).
+  useClickSound(state.soundEnabled !== false);
+
   const pct = Math.floor((time.getHours() * 60 + time.getMinutes()) / 14.4);
 
   useEffect(() => {
@@ -1152,6 +1162,10 @@ function AppearanceCard({ theme, onChange }) {
 
 function SettingsPage({ state, setState, resetState }) {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  // Which legal document is open as a full-screen overlay: 'privacy' | 'terms' | null.
+  const [legalView, setLegalView] = useState(null);
+
+  const soundOn = state.soundEnabled !== false;
 
   return (
     <div style={{ padding: "clamp(14px, 4.5vw, 20px)" }}>
@@ -1164,6 +1178,36 @@ function SettingsPage({ state, setState, resetState }) {
         theme={state.theme || "dark"}
         onChange={(t) => setState((prev) => ({ ...prev, theme: t }))}
       />
+
+      {/* Sound — click-sound mute toggle */}
+      <div
+        style={{
+          background: "var(--card)",
+          backdropFilter: "blur(20px)",
+          borderRadius: "24px",
+          padding: "20px",
+          marginBottom: "16px",
+          border: "1px solid var(--border)",
+        }}
+      >
+        <div style={{ fontSize: "11px", fontWeight: 700, marginBottom: "16px", color: "var(--text-faint)", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
+          SOUND
+        </div>
+        <Toggle
+          label="Click sounds"
+          checked={soundOn}
+          onChange={(v) => {
+            // Tick once on enable so the change is audible feedback.
+            if (v) playClick();
+            setState((prev) => ({ ...prev, soundEnabled: v }));
+          }}
+          style={{ marginBottom: "8px" }}
+        />
+        <div style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.5 }}>
+          A soft tick when you tap buttons and controls. The first sound plays
+          after your first interaction (a browser requirement).
+        </div>
+      </div>
 
       {/* Install + Notifications */}
       <InstallAndNotificationsCard state={state} setState={setState} />
@@ -1438,9 +1482,63 @@ function SettingsPage({ state, setState, resetState }) {
         )}
       </div>
 
+      {/* Legal */}
+      <div
+        style={{
+          background: "var(--card)",
+          backdropFilter: "blur(20px)",
+          borderRadius: "24px",
+          padding: "20px",
+          marginBottom: "16px",
+          border: "1px solid var(--border)",
+        }}
+      >
+        <div style={{ fontSize: "11px", fontWeight: 700, marginBottom: "12px", color: "var(--text-faint)", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
+          LEGAL
+        </div>
+        {[
+          { id: "privacy", label: "Privacy Policy" },
+          { id: "terms", label: "Terms of Service" },
+        ].map((row, i) => (
+          <button
+            key={row.id}
+            onClick={() => setLegalView(row.id)}
+            style={{
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "14px 4px",
+              background: "transparent",
+              border: "none",
+              borderTop: i === 0 ? "none" : "1px solid var(--border)",
+              color: "var(--text)",
+              fontSize: "14px",
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            <span>{row.label}</span>
+            <span style={{ color: "var(--text-faint)", fontSize: "18px", lineHeight: 1 }}>›</span>
+          </button>
+        ))}
+      </div>
+
       <div style={{ textAlign: "center", fontSize: "11px", color: "var(--text-faint)", marginTop: "24px", fontFamily: "var(--font-mono)" }}>
         LIFEOS V3.0.0
       </div>
+
+      {/* Full-screen legal reader overlay */}
+      <AnimatePresence>
+        {legalView && (
+          <LegalPage
+            key={legalView}
+            doc={legalDocs[legalView]}
+            onBack={() => setLegalView(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -6,6 +6,9 @@ import { useAuth } from "./useAuth.js";
 const INITIAL_STATE = {
   user: "",
   theme: "dark", // "dark" | "light" — see src/theme/colors.js
+  // Soft click sound on button/control taps. On by default; muted via the
+  // Sound card in Settings. Synced like any other preference.
+  soundEnabled: true,
   workoutDay: "",
   whoop: { recovery: 0, sleep: 0, strain: 0, hrv: 0, rhr: 0, status: "gray", advice: "" },
   goals: [],

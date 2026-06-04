@@ -423,8 +423,9 @@ export function AccountPage({
             lineHeight: 1.5,
           }}
         >
-          By signing up you agree your data is stored in your own Supabase
-          project. LifeOS does not collect or transmit data to its developers.
+          By creating an account, your data is securely stored in LifeOS's
+          cloud so it can sync across your devices. See the Privacy Policy in
+          Settings for what's collected and how it's used.
         </div>
       </GlassCard>
 
