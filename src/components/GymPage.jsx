@@ -5,6 +5,8 @@ import {
   useMotionValue,
   useTransform,
   animate,
+  Reorder,
+  useDragControls,
 } from "framer-motion";
 import { GlassCard, SectionHeader } from "./GlassComponents.jsx";
 import { Input, Button } from "./UI.jsx";
@@ -92,6 +94,23 @@ export function GymPage({ state, setState }) {
     });
     setNewExercise({ name: "", weight: "", reps: "", sets: "" });
     setShowAddExercise(false);
+  };
+
+  // Reorder the selected day's exercise plan. framer-motion's Reorder hands
+  // back the day's exercise objects in their new order; we persist that as
+  // the plan. Ordering is purely cosmetic — per-session checkoffs are keyed
+  // by exercise id and overload history by name, so neither is affected by a
+  // reorder. selectedDay is captured into a local so the functional update
+  // can't drift if the day changes mid-gesture.
+  const reorderExercises = (ordered) => {
+    const day = selectedDay;
+    setState((prev) => ({
+      ...prev,
+      gymExercises: {
+        ...prev.gymExercises,
+        [day]: ordered,
+      },
+    }));
   };
 
   // Toggle an exercise's done flag for today, then reconcile the auto gym
@@ -581,7 +600,25 @@ export function GymPage({ state, setState }) {
           )}
         </AnimatePresence>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        {currentExercises.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-faint)", fontSize: "14px" }}>
+            No exercises added for {selectedDay}.
+          </div>
+        ) : (
+          <Reorder.Group
+            as="div"
+            axis="y"
+            values={currentExercises}
+            onReorder={reorderExercises}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "8px",
+              listStyle: "none",
+              margin: 0,
+              padding: 0,
+            }}
+          >
           {currentExercises.map((e, idx) => {
             // Pull historical weights for this exercise. Show last 3 progress
             // points + the current prescribed weight, deduped so back-to-back
@@ -629,12 +666,8 @@ export function GymPage({ state, setState }) {
               />
             );
           })}
-          {currentExercises.length === 0 && (
-            <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-faint)", fontSize: "14px" }}>
-              No exercises added for {selectedDay}.
-            </div>
-          )}
-        </div>
+          </Reorder.Group>
+        )}
       </div>
 
       {/* ── Today's Gym Status ─────────────────────────────────────── */}
@@ -985,6 +1018,9 @@ function SwipeableExerciseRow({
 }) {
   const x = useMotionValue(0);
   const opacity = useTransform(x, [0, -40], [0, 1]);
+  // Controls the vertical Reorder drag. Started imperatively from the grip
+  // handle so the rest of the row stays free for the horizontal swipe gesture.
+  const dragControls = useDragControls();
 
   // Stop a tap/drag on the interactive controls from also starting the row's
   // horizontal swipe.
@@ -1002,7 +1038,11 @@ function SwipeableExerciseRow({
 
   if (isEditing) {
     return (
-      <motion.div
+      <Reorder.Item
+        as="div"
+        value={ex}
+        dragListener={false}
+        dragControls={dragControls}
         initial={{ opacity: 0, x: -10 }}
         animate={{ opacity: 1, x: 0 }}
         style={{
@@ -1012,6 +1052,7 @@ function SwipeableExerciseRow({
           padding: "16px",
           border: "1px solid rgba(251, 191, 36, 0.45)",
           boxShadow: "0 0 20px rgba(251,191,36,0.15)",
+          listStyle: "none",
         }}
       >
         <Input
@@ -1047,12 +1088,51 @@ function SwipeableExerciseRow({
           <Button onClick={onSaveEdit} style={{ flex: 2, background: "#FBBF24", color: "#000" }}>Save</Button>
           <Button onClick={onCancelEdit} variant="ghost" style={{ flex: 1 }}>Cancel</Button>
         </div>
-      </motion.div>
+      </Reorder.Item>
     );
   }
 
   return (
-    <div style={{ position: "relative", overflow: "hidden", borderRadius: "16px" }}>
+    <Reorder.Item
+      as="div"
+      value={ex}
+      dragListener={false}
+      dragControls={dragControls}
+      style={{ display: "flex", alignItems: "stretch", gap: "6px", listStyle: "none" }}
+    >
+      {/* Drag handle rail — lives OUTSIDE the swipe container so grabbing it
+          starts the vertical Reorder drag without the pointer ever reaching
+          the inner horizontal-swipe layer. (Keeping it inside forced a
+          stopPropagation that also swallowed the handle's own pointerdown and
+          broke dragging — the bug this layout avoids.) */}
+      <div
+        role="button"
+        aria-label="Drag to reorder"
+        onPointerDown={(e) => dragControls.start(e)}
+        style={{
+          flexShrink: 0,
+          alignSelf: "stretch",
+          width: "24px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "var(--text-faint)",
+          cursor: "grab",
+          touchAction: "none",
+        }}
+      >
+        <svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor" aria-hidden="true">
+          <circle cx="3" cy="3" r="1.4" />
+          <circle cx="9" cy="3" r="1.4" />
+          <circle cx="3" cy="9" r="1.4" />
+          <circle cx="9" cy="9" r="1.4" />
+          <circle cx="3" cy="15" r="1.4" />
+          <circle cx="9" cy="15" r="1.4" />
+        </svg>
+      </div>
+
+      {/* Swipe container — horizontal swipe-to-reveal edit/delete lives here. */}
+      <div style={{ position: "relative", overflow: "hidden", borderRadius: "16px", flex: 1, minWidth: 0 }}>
       <motion.div
         style={{
           position: "absolute",
@@ -1305,6 +1385,7 @@ function SwipeableExerciseRow({
           </div>
         </motion.div>
       </motion.div>
-    </div>
+      </div>
+    </Reorder.Item>
   );
 }

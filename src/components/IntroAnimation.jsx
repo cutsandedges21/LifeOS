@@ -118,7 +118,11 @@ export function IntroAnimation({ onComplete, theme = "dark" }) {
           Wraps the glow + both rings in a full-screen flex container that's
           translated upward, so the geometric center of the circle aligns
           with the wordmark letters rather than the full wordmark+tagline
-          stack. ~3.5vmin (~25-30px) lifts past the gap+underline+tagline. */}
+          stack. The lift = half of everything stacked BELOW the letters
+          (gap 18 + underline 2.5 + gap 18 + tagline ≈ 56px → 28px). Because
+          that stack is fixed-pixel sized, the lift must be a fixed px value:
+          a vmin lift shrinks on phones (1vmin ≈ 3.9px at 390w) and drops the
+          circle below the wordmark — the cause of the off-center mobile look. */}
       <div
         style={{
           position: "absolute",
@@ -126,7 +130,7 @@ export function IntroAnimation({ onComplete, theme = "dark" }) {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          transform: "translateY(-3.5vmin)",
+          transform: "translateY(-28px)",
           pointerEvents: "none",
         }}
       >
