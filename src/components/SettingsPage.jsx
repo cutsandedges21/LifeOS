@@ -391,12 +391,19 @@ function AccountSyncSection({ state, setState, auth, syncStatus, lastSyncedAt, s
     setInfo("");
     try {
       const fn = mode === "signin" ? auth.signIn : auth.signUp;
-      const { error } = await fn(email.trim(), password);
+      const { data, error } = await fn(email.trim(), password);
       if (error) {
         setErrorMsg(error.message || "Something went wrong.");
       } else if (mode === "signup") {
-        setInfo("Account created. Check your inbox to confirm, then sign in.");
-        setMode("signin");
+        if (data?.session) {
+          // Email confirmation is disabled, so signup returns a session and the
+          // auth listener flips this card to the signed-in state on its own.
+          setInfo("Account created — you're signed in.");
+        } else {
+          // Project still requires confirmation (e.g. if re-enabled later).
+          setInfo("Account created. Check your inbox to confirm, then sign in.");
+          setMode("signin");
+        }
       }
     } catch (e) {
       setErrorMsg(e.message || "Unexpected error.");
