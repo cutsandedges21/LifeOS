@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLifeOSState } from "./hooks/useLifeOSState.js";
+import { useFriends } from "./hooks/useFriends.js";
 import { MainPage, OVERSEER_SYSTEM_PROMPT } from "./components/MainPage.jsx";
 import { FinancesPage } from "./components/FinancesPage.jsx";
 import { BrandPage } from "./components/BrandPage.jsx";
 import { HealthPage } from "./components/HealthPage.jsx";
 import { GymPage } from "./components/GymPage.jsx";
 import { HabitsPage } from "./components/HabitsPage.jsx";
-import { AccountPage } from "./components/AccountPage.jsx";
+import { FriendsPage } from "./components/FriendsPage.jsx";
+import { SettingsPage } from "./components/SettingsPage.jsx";
 import { IntroAnimation } from "./components/IntroAnimation.jsx";
 import { PageSkeleton } from "./components/SkeletonLoader.jsx";
 import { AnimatedBackground } from "./components/AnimatedBackground.jsx";
@@ -134,11 +136,13 @@ const HabitsIcon = () => (
   </svg>
 );
 
-// Account / user silhouette — used for the Account page
-const AccountIcon = () => (
-  <svg width="22" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-    <circle cx="12" cy="7" r="4" />
+// Friends / two-person icon — used for the Friends page
+const FriendsIcon = () => (
+  <svg width="24" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
   </svg>
 );
 
@@ -182,6 +186,9 @@ export default function LifeOS() {
     lastSyncedAt,
     syncError,
   } = useLifeOSState();
+  // Friends hub — mounted here (not in FriendsPage) so realtime notifications
+  // fire on any tab and the nav badge can read the pending-request count.
+  const friendsHub = useFriends(auth);
   const [tab, setTab] = useState("main");
   const [time, setTime] = useState(new Date());
   const [overseerLoading, setOverseerLoading] = useState(false);
@@ -254,8 +261,22 @@ export default function LifeOS() {
     return () => clearInterval(t);
   }, []);
 
+  // Auto-scroll the Overseer chat to the newest message — but ONLY when a
+  // message is actually added. The first run (initial local hydrate) and the
+  // cloud-pull state replacement on sign-in must NOT scroll, otherwise opening
+  // the app dumps the user at the bottom (the AI chat) instead of the top.
+  const prevOverseerLen = useRef(null);
   useEffect(() => {
-    chatRef.current?.scrollIntoView({ behavior: "smooth" });
+    const len = state.overseerLog?.length || 0;
+    if (prevOverseerLen.current === null) {
+      // First observation (hydrate) — record length, don't scroll.
+      prevOverseerLen.current = len;
+      return;
+    }
+    if (len > prevOverseerLen.current) {
+      chatRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+    prevOverseerLen.current = len;
   }, [state.overseerLog]);
 
   // Theme — write CSS variables onto :root whenever theme changes.
@@ -302,27 +323,18 @@ export default function LifeOS() {
       setState((prev) => ({
         ...prev,
         streak: newStreak,
+        // Longest streak ever — used by the Friends comparison. Mirrors the
+        // netWorthHigh "personal best" pattern; only ever increases.
+        streakHigh: Math.max(prev.streakHigh || 0, newStreak),
         lastStreakCheck: today,
       }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, time.toDateString(), state.gymVisits]);
 
-  // Goals midnight reset — clears state.goals at the start of each new day.
-  // First boot just stamps the date (no clearing) so we don't surprise the user.
-  useEffect(() => {
-    if (!isLoaded) return;
-    const today = todayISO();
-    if (state.lastGoalsReset === today) return;
-
-    setState((prev) => {
-      if (!prev.lastGoalsReset) {
-        return { ...prev, lastGoalsReset: today };
-      }
-      return { ...prev, goals: [], lastGoalsReset: today };
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded, time.toDateString()]);
+  // Goals (the To-Do list) intentionally do NOT reset daily. The list is a
+  // persistent to-do list now: items stay until the user completes or removes
+  // them. (Previously this cleared state.goals at midnight — removed by request.)
 
   // Overseer message limit reset — resets message count at the start of each new day.
   useEffect(() => {
@@ -706,7 +718,7 @@ export default function LifeOS() {
     gym: "#FBBF24",
     brand: "#22D3EE",
     habits: "#A855F7",
-    account: "#60A5FA",
+    friends: "#60A5FA",
     settings: "#94A3B8",
   };
 
@@ -867,21 +879,18 @@ export default function LifeOS() {
             {tab === "health" && <HealthPage state={state} setState={setState} />}
             {tab === "gym" && <GymPage state={state} setState={setState} />}
             {tab === "habits" && <HabitsPage state={state} setState={setState} />}
-            {tab === "account" && (
-              <AccountPage
-                state={state}
-                setState={setState}
-                auth={auth}
-                syncStatus={syncStatus}
-                lastSyncedAt={lastSyncedAt}
-                syncError={syncError}
-              />
+            {tab === "friends" && (
+              <FriendsPage hub={friendsHub} state={state} auth={auth} />
             )}
             {tab === "settings" && (
               <SettingsPage
                 state={state}
                 setState={setState}
                 resetState={resetState}
+                auth={auth}
+                syncStatus={syncStatus}
+                lastSyncedAt={lastSyncedAt}
+                syncError={syncError}
               />
             )}
           </motion.div>
@@ -903,642 +912,11 @@ export default function LifeOS() {
           { id: "brand", label: "Brand", icon: <BrandIcon />, color: "#22D3EE", hidden: true },
           { id: "habits", label: "Habits", icon: <HabitsIcon />, color: pageAccents.habits, labelAbove: true, labelLeftSide: true },
           { id: "main", label: "Home", icon: <HomeIcon />, color: pageAccents.main, labelAbove: true },
-          { id: "account", label: "Account", icon: <AccountIcon />, color: pageAccents.account, labelAbove: true },
+          { id: "friends", label: "Friends", icon: <FriendsIcon />, color: pageAccents.friends, labelAbove: true, badge: friendsHub.pendingCount },
           { id: "gym", label: "Gym", icon: <GymIcon />, color: "#FBBF24", labelAbove: true },
           { id: "settings", label: "Settings", icon: <SettingsIcon />, color: "#94A3B8", labelAbove: true },
         ]}
       />
-    </div>
-  );
-}
-
-// Install + notifications. Two responsibilities, one card because they're
-// the "make this feel like a real app" cluster — both PWA features and both
-// only matter at first run.
-function InstallAndNotificationsCard({ state, setState }) {
-  const [notifPerm, setNotifPerm] = useState(notificationStatus());
-  const [installAvailable, setInstallAvailable] = useState(canInstall());
-  const [installed, setInstalled] = useState(isStandalone());
-
-  // The beforeinstallprompt event fires asynchronously after page load. Listen
-  // for our utility's rebroadcast so the button can light up when available.
-  useEffect(() => {
-    const onAvailable = () => setInstallAvailable(true);
-    const onInstalled = () => {
-      setInstallAvailable(false);
-      setInstalled(true);
-    };
-    window.addEventListener("lifeos:install-available", onAvailable);
-    window.addEventListener("lifeos:installed", onInstalled);
-    return () => {
-      window.removeEventListener("lifeos:install-available", onAvailable);
-      window.removeEventListener("lifeos:installed", onInstalled);
-    };
-  }, []);
-
-  const handleToggleNotifications = async () => {
-    if (state.notificationsEnabled) {
-      setState((p) => ({ ...p, notificationsEnabled: false }));
-      return;
-    }
-    const result = await requestNotificationPermission();
-    setNotifPerm(notificationStatus());
-    if (result === "granted") {
-      setState((p) => ({ ...p, notificationsEnabled: true }));
-      // Fire a confirmation ping so the user sees it works.
-      showNotification("Overseer wired up", "You'll get a 9am check-in daily. Sub renewals get a heads-up too.", { tag: "lifeos-welcome" });
-    }
-  };
-
-  const handleInstall = async () => {
-    const outcome = await promptInstall();
-    if (outcome === "accepted") setInstallAvailable(false);
-  };
-
-  const permLabel =
-    notifPerm === "granted" ? "GRANTED" :
-    notifPerm === "denied" ? "BLOCKED" :
-    notifPerm === "unsupported" ? "UNSUPPORTED" : "NOT SET";
-  const permColor =
-    notifPerm === "granted" ? "#34D399" :
-    notifPerm === "denied" ? "#F87171" :
-    "var(--text-faint)";
-
-  // Hide the install row entirely once the user is already running standalone —
-  // there's nothing to install at that point and "Already installed" reads
-  // cleaner than a disabled button.
-  const showInstall = !installed;
-
-  return (
-    <div
-      style={{
-        background: "var(--card)",
-        backdropFilter: "blur(20px)",
-        borderRadius: "24px",
-        padding: "20px",
-        marginBottom: "16px",
-        border: "1px solid var(--border)",
-      }}
-    >
-      <div style={{ fontSize: "11px", fontWeight: 700, marginBottom: "16px", color: "var(--text-faint)", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
-        APP & NOTIFICATIONS
-      </div>
-
-      {/* Notifications row */}
-      <div style={{ marginBottom: showInstall ? "16px" : 0 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-          <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--text)" }}>
-            Daily Overseer ping
-          </div>
-          <div style={{
-            fontSize: "9px",
-            fontFamily: "var(--font-mono)",
-            letterSpacing: "0.1em",
-            color: permColor,
-            fontWeight: 700,
-          }}>
-            {permLabel}
-          </div>
-        </div>
-        <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "12px", lineHeight: 1.5 }}>
-          9am check-in with streak, habits, and goals — plus a 3-day heads-up before any subscription renews. Best results when LifeOS is installed to your home screen.
-        </div>
-        <button
-          onClick={handleToggleNotifications}
-          disabled={notifPerm === "denied" || notifPerm === "unsupported"}
-          style={{
-            width: "100%",
-            padding: "12px",
-            borderRadius: "12px",
-            border: state.notificationsEnabled
-              ? "1px solid rgba(52,211,153,0.4)"
-              : "1px solid var(--border)",
-            background: state.notificationsEnabled
-              ? "rgba(52,211,153,0.12)"
-              : "var(--card-mid)",
-            color: state.notificationsEnabled ? "#34D399" : "var(--text)",
-            fontWeight: 700,
-            fontSize: "13px",
-            cursor: (notifPerm === "denied" || notifPerm === "unsupported") ? "not-allowed" : "pointer",
-            opacity: (notifPerm === "denied" || notifPerm === "unsupported") ? 0.5 : 1,
-            fontFamily: "inherit",
-          }}
-        >
-          {state.notificationsEnabled ? "✓ Notifications ON" :
-           notifPerm === "denied" ? "Blocked in browser settings" :
-           notifPerm === "unsupported" ? "Not supported here" :
-           "Enable notifications"}
-        </button>
-      </div>
-
-      {/* Install row */}
-      {showInstall && (
-        <div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-            <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--text)" }}>
-              Install LifeOS
-            </div>
-            <div style={{
-              fontSize: "9px",
-              fontFamily: "var(--font-mono)",
-              letterSpacing: "0.1em",
-              color: installAvailable ? "#34D399" : "var(--text-faint)",
-              fontWeight: 700,
-            }}>
-              {installAvailable ? "READY" : "USE BROWSER MENU"}
-            </div>
-          </div>
-          <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "12px", lineHeight: 1.5 }}>
-            Add to your home screen — runs like a native app, opens straight to your dashboard. On iPhone: Safari → Share → Add to Home Screen.
-          </div>
-          <button
-            onClick={handleInstall}
-            disabled={!installAvailable}
-            style={{
-              width: "100%",
-              padding: "12px",
-              borderRadius: "12px",
-              border: installAvailable
-                ? "1px solid rgba(var(--accent-main-rgb),0.5)"
-                : "1px solid var(--border)",
-              background: installAvailable
-                ? "linear-gradient(135deg, var(--accent-main), rgba(var(--accent-main-rgb),0.75))"
-                : "var(--card-mid)",
-              color: installAvailable ? "#fff" : "var(--text-faint)",
-              fontWeight: 700,
-              fontSize: "13px",
-              cursor: installAvailable ? "pointer" : "not-allowed",
-              opacity: installAvailable ? 1 : 0.7,
-              fontFamily: "inherit",
-            }}
-          >
-            {installAvailable ? "Install to Home Screen" : "Open browser's install menu"}
-          </button>
-        </div>
-      )}
-
-      {installed && (
-        <div style={{
-          marginTop: "12px",
-          padding: "10px 12px",
-          borderRadius: "10px",
-          background: "rgba(52,211,153,0.08)",
-          border: "1px solid rgba(52,211,153,0.25)",
-          fontSize: "12px",
-          color: "#34D399",
-          fontFamily: "var(--font-mono)",
-          letterSpacing: "0.05em",
-          textAlign: "center",
-        }}>
-          ✓ RUNNING AS INSTALLED APP
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Three-card theme picker. Each card paints itself with its own theme's
-// accent + bg as a live preview swatch so the user sees exactly what they're
-// switching to. Stacks on narrow screens via auto-fit grid.
-function AppearanceCard({ theme, onChange }) {
-  const options = [
-    { id: "dark",     label: "Dark",     accent: "#7C6DFA", bg: "#080810", text: "#F8FAFF", tagline: "Deep space + indigo glow" },
-    { id: "light",    label: "Light",    accent: "#F97316", bg: "#FAFAF7", text: "#1A1A1F", tagline: "Soft white + vibrant orange" },
-    { id: "midnight", label: "Midnight", accent: "#10B981", bg: "#03060B", text: "#E8FFF4", tagline: "Pure black + emerald CRT" },
-  ];
-  return (
-    <div
-      style={{
-        background: "var(--card)",
-        backdropFilter: "blur(20px)",
-        borderRadius: "24px",
-        padding: "20px",
-        marginBottom: "16px",
-        border: "1px solid var(--border)",
-      }}
-    >
-      <div style={{ fontSize: "11px", fontWeight: 700, marginBottom: "16px", color: "var(--text-faint)", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
-        APPEARANCE
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "10px" }}>
-        {options.map((opt) => {
-          const selected = theme === opt.id;
-          return (
-            <button
-              key={opt.id}
-              onClick={() => onChange(opt.id)}
-              style={{
-                background: opt.bg,
-                color: opt.text,
-                border: `2px solid ${selected ? opt.accent : "var(--border)"}`,
-                borderRadius: "16px",
-                padding: "14px",
-                cursor: "pointer",
-                textAlign: "left",
-                boxShadow: selected ? `0 0 18px ${opt.accent}55` : "none",
-                transition: "border-color 0.2s, box-shadow 0.2s",
-                fontFamily: "inherit",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-                <span style={{ width: "12px", height: "12px", borderRadius: "50%", background: opt.accent, boxShadow: `0 0 8px ${opt.accent}aa` }} />
-                <span style={{ fontWeight: 700, fontSize: "14px" }}>{opt.label}</span>
-                {selected && (
-                  <span style={{ marginLeft: "auto", fontSize: "10px", fontFamily: "var(--font-mono)", color: opt.accent, letterSpacing: "0.1em" }}>
-                    ACTIVE
-                  </span>
-                )}
-              </div>
-              <div style={{ fontSize: "11px", opacity: 0.65 }}>
-                {opt.tagline}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function SettingsPage({ state, setState, resetState }) {
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
-  // Which legal document is open as a full-screen overlay: 'privacy' | 'terms' | null.
-  const [legalView, setLegalView] = useState(null);
-
-  const soundOn = state.soundEnabled !== false;
-
-  return (
-    <div style={{ padding: "clamp(14px, 4.5vw, 20px)" }}>
-      <div style={{ fontSize: "32px", fontWeight: 900, marginBottom: "24px", letterSpacing: "-0.02em" }}>
-        Settings
-      </div>
-
-      {/* Appearance — theme switcher */}
-      <AppearanceCard
-        theme={state.theme || "dark"}
-        onChange={(t) => setState((prev) => ({ ...prev, theme: t }))}
-      />
-
-      {/* Sound — click-sound mute toggle */}
-      <div
-        style={{
-          background: "var(--card)",
-          backdropFilter: "blur(20px)",
-          borderRadius: "24px",
-          padding: "20px",
-          marginBottom: "16px",
-          border: "1px solid var(--border)",
-        }}
-      >
-        <div style={{ fontSize: "11px", fontWeight: 700, marginBottom: "16px", color: "var(--text-faint)", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
-          SOUND
-        </div>
-        <Toggle
-          label="Click sounds"
-          checked={soundOn}
-          onChange={(v) => {
-            // Tick once on enable so the change is audible feedback.
-            if (v) playClick();
-            setState((prev) => ({ ...prev, soundEnabled: v }));
-          }}
-          style={{ marginBottom: "8px" }}
-        />
-        <div style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.5 }}>
-          A soft tick when you tap buttons and controls. The first sound plays
-          after your first interaction (a browser requirement).
-        </div>
-      </div>
-
-      {/* Install + Notifications */}
-      <InstallAndNotificationsCard state={state} setState={setState} />
-
-      {/* Schedule
-      <div
-        style={{
-          background: "var(--card)",
-          backdropFilter: "blur(20px)",
-          borderRadius: "24px",
-          padding: "20px",
-          marginBottom: "16px",
-          border: "1px solid var(--border)",
-        }}
-      >
-        <div style={{ fontSize: "11px", fontWeight: 700, marginBottom: "16px", color: "var(--text-faint)", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
-          SCHEDULE
-        </div>
-        <div style={{ display: "flex", gap: "12px" }}>
-          <div style={{ flex: 1 }}>
-            <label style={{ fontSize: "10px", color: "rgba(248, 250, 255, 0.4)", display: "block", marginBottom: "6px", fontFamily: "var(--font-mono)" }}>WAKE TIME</label>
-            <input
-              type="time"
-              value={state.settings?.wakeTime || "08:00"}
-              onChange={(e) => setState(p => ({ ...p, settings: { ...p.settings, wakeTime: e.target.value } }))}
-              style={{
-                width: "100%",
-                background: "rgba(255, 255, 255, 0.05)",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
-                borderRadius: "14px",
-                padding: "14px",
-                color: "#F8FAFF",
-                fontSize: "14px",
-                outline: "none",
-              }}
-            />
-          </div>
-          <div style={{ flex: 1 }}>
-            <label style={{ fontSize: "10px", color: "rgba(248, 250, 255, 0.4)", display: "block", marginBottom: "6px", fontFamily: "var(--font-mono)" }}>SLEEP TIME</label>
-            <input
-              type="time"
-              value={state.settings?.sleepTime || "00:00"}
-              onChange={(e) => setState(p => ({ ...p, settings: { ...p.settings, sleepTime: e.target.value } }))}
-              style={{
-                width: "100%",
-                background: "rgba(255, 255, 255, 0.05)",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
-                borderRadius: "14px",
-                padding: "14px",
-                color: "#F8FAFF",
-                fontSize: "14px",
-                outline: "none",
-              }}
-            />
-          </div>
-        </div>
-      </div>
-       */}
-
-      {/* Skipped Gym History */}
-      <div
-        style={{
-          background: "var(--card)",
-          backdropFilter: "blur(20px)",
-          borderRadius: "24px",
-          padding: "20px",
-          marginBottom: "16px",
-          border: "1px solid var(--border)",
-        }}
-      >
-        <div style={{ fontSize: "11px", fontWeight: 700, marginBottom: "16px", color: "var(--text-faint)", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
-          REASONS WHY I SKIPPED THE GYM
-        </div>
-
-        {(!state.gymSkips || state.gymSkips.length === 0) ? (
-          <div style={{ fontSize: "13px", color: "var(--text-faint)", textAlign: "center", padding: "20px 0" }}>
-            No gym skips logged. Stay consistent.
-          </div>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            {state.gymSkips.map((item) => (
-              <div key={item.id} style={{
-                background: "rgba(248, 113, 113, 0.05)",
-                border: "1px solid rgba(248, 113, 113, 0.15)",
-                borderRadius: "16px",
-                padding: "14px",
-              }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "6px" }}>
-                  <div style={{ fontSize: "13px", fontWeight: 700, color: "#F87171", fontFamily: "var(--font-mono)", letterSpacing: "0.05em" }}>
-                    GYM SKIPPED
-                  </div>
-                  <div style={{ fontSize: "9px", color: "#F87171", fontFamily: "var(--font-mono)" }}>{item.date}</div>
-                </div>
-                <div style={{ fontSize: "13px", color: "var(--text-muted)", fontStyle: "italic", lineHeight: 1.4 }}>
-                  "{item.reason}"
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Missed Goals History */}
-      <div
-        style={{
-          background: "var(--card)",
-          backdropFilter: "blur(20px)",
-          borderRadius: "24px",
-          padding: "20px",
-          marginBottom: "16px",
-          border: "1px solid var(--border)",
-        }}
-      >
-        <div style={{ fontSize: "11px", fontWeight: 700, marginBottom: "16px", color: "var(--text-faint)", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
-          SKIPPED / MISSED GOALS
-        </div>
-        
-        {(!state.missedGoalsHistory || state.missedGoalsHistory.length === 0) ? (
-          <div style={{ fontSize: "13px", color: "var(--text-faint)", textAlign: "center", padding: "20px 0" }}>
-            No missed goals yet. Keep it up!
-          </div>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            {state.missedGoalsHistory.map((item) => (
-              <div key={item.id} style={{
-                background: "rgba(239, 68, 68, 0.05)",
-                border: "1px solid rgba(239, 68, 68, 0.15)",
-                borderRadius: "16px",
-                padding: "14px",
-              }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "6px" }}>
-                  <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--text)" }}>{item.text}</div>
-                  <div style={{ fontSize: "9px", color: "#F87171", fontFamily: "var(--font-mono)" }}>{item.date}</div>
-                </div>
-                <div style={{ fontSize: "12px", color: "var(--text-faint)", fontStyle: "italic", lineHeight: 1.4 }}>
-                  "{item.reason}"
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* About & How to Use */}
-      <div
-        style={{
-          background: "var(--card)",
-          backdropFilter: "blur(20px)",
-          borderRadius: "24px",
-          padding: "20px",
-          marginBottom: "16px",
-          border: "1px solid var(--border)",
-        }}
-      >
-        <div style={{ fontSize: "11px", fontWeight: 700, marginBottom: "16px", color: "var(--text-faint)", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
-          ABOUT & HOW TO USE
-        </div>
-
-        <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--text)", marginBottom: "8px" }}>
-          Welcome to LifeOS
-        </div>
-        <div style={{ fontSize: "13px", color: "var(--text-muted)", lineHeight: 1.55, marginBottom: "20px" }}>
-          LifeOS is your personal accountability dashboard. Track your goals, sleep, finances, and gym — all in one place. The Overseer keeps you honest, calls out the slips, and rewards the wins.
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-          {[
-            {
-              accent: "var(--accent-main)",
-              label: "HOME",
-              title: "Daily flow + Overseer",
-              body: "See your day at a glance. Check off tasks, hit your habits, and chat with the Overseer — a brutally honest AI coach that knows your full context.",
-            },
-            {
-              accent: "#F87171",
-              label: "SLEEP",
-              title: "Wake / Sleep Tracking",
-              body: "Log when you went to bed and when you got up. Grow your sleep score. Hit 8+ hours for a full recovery.",
-            },
-            {
-              accent: "#34D399",
-              label: "FINANCES",
-              title: "Income, Expenses, Net worth",
-              body: "Track money in and money out. Set savings goals and watch your monthly expenses shrink. Numbers don't lie.",
-            },
-            {
-              accent: "#FBBF24",
-              label: "GYM",
-              title: "Workouts + Skip Log",
-              body: "Log sessions. If you skip, you have to write down why. Those excuses show up here in Settings so you can see your patterns.",
-            },
-            {
-              accent: "var(--text-muted)",
-              label: "SETTINGS",
-              title: "Name, History, Reset",
-              body: "Edit your name, review every skipped gym session and missed goal, and reset everything from the Danger Zone if you need a fresh start.",
-            },
-          ].map((item) => (
-            <div
-              key={item.label}
-              style={{
-                background: "var(--card)",
-                border: "1px solid var(--border)",
-                borderRadius: "16px",
-                padding: "14px",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--text)" }}>{item.title}</div>
-                <div style={{ fontSize: "10px", fontWeight: 700, color: item.accent, fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
-                  {item.label}
-                </div>
-              </div>
-              <div style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.5 }}>
-                {item.body}
-              </div>
-            </div>
-          ))}
-        </div>
-
-      </div>
-
-      {/* Danger Zone */}
-      <div
-        style={{
-          background: "rgba(248, 113, 113, 0.05)",
-          borderRadius: "24px",
-          padding: "20px",
-          marginBottom: "16px",
-          border: "1px solid rgba(248, 113, 113, 0.15)",
-        }}
-      >
-        <div style={{ fontSize: "11px", fontWeight: 700, marginBottom: "16px", color: "#F87171", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
-          DANGER ZONE
-        </div>
-        {!showResetConfirm ? (
-          <button
-            onClick={() => setShowResetConfirm(true)}
-            style={{
-              width: "100%",
-              padding: "14px",
-              borderRadius: "14px",
-              border: "1px solid rgba(248, 113, 113, 0.3)",
-              background: "transparent",
-              color: "#F87171",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            Reset All Data
-          </button>
-        ) : (
-          <div>
-            <div style={{ fontSize: "13px", color: "var(--text-faint)", marginBottom: "16px" }}>
-              Permanent deletion. This cannot be undone.
-            </div>
-            <div style={{ display: "flex", gap: "10px" }}>
-              <button
-                onClick={() => { resetState(); setShowResetConfirm(false); }}
-                style={{ flex: 1, padding: "14px", borderRadius: "14px", border: "none", background: "#F87171", color: "#fff", fontWeight: 700, cursor: "pointer" }}
-              >
-                Reset
-              </button>
-              <button
-                onClick={() => setShowResetConfirm(false)}
-                style={{ flex: 1, padding: "14px", borderRadius: "14px", border: "1px solid var(--border)", background: "transparent", color: "var(--text)", fontWeight: 600, cursor: "pointer" }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Legal */}
-      <div
-        style={{
-          background: "var(--card)",
-          backdropFilter: "blur(20px)",
-          borderRadius: "24px",
-          padding: "20px",
-          marginBottom: "16px",
-          border: "1px solid var(--border)",
-        }}
-      >
-        <div style={{ fontSize: "11px", fontWeight: 700, marginBottom: "12px", color: "var(--text-faint)", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
-          LEGAL
-        </div>
-        {[
-          { id: "privacy", label: "Privacy Policy" },
-          { id: "terms", label: "Terms of Service" },
-        ].map((row, i) => (
-          <button
-            key={row.id}
-            onClick={() => setLegalView(row.id)}
-            style={{
-              width: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "14px 4px",
-              background: "transparent",
-              border: "none",
-              borderTop: i === 0 ? "none" : "1px solid var(--border)",
-              color: "var(--text)",
-              fontSize: "14px",
-              fontWeight: 600,
-              cursor: "pointer",
-              fontFamily: "inherit",
-            }}
-          >
-            <span>{row.label}</span>
-            <span style={{ color: "var(--text-faint)", fontSize: "18px", lineHeight: 1 }}>›</span>
-          </button>
-        ))}
-      </div>
-
-      <div style={{ textAlign: "center", fontSize: "11px", color: "var(--text-faint)", marginTop: "24px", fontFamily: "var(--font-mono)" }}>
-        LIFEOS V3.0.0
-      </div>
-
-      {/* Full-screen legal reader overlay */}
-      <AnimatePresence>
-        {legalView && (
-          <LegalPage
-            key={legalView}
-            doc={legalDocs[legalView]}
-            onBack={() => setLegalView(null)}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 }

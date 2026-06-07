@@ -324,7 +324,7 @@ export function HabitsPage({ state, setState }) {
                 marginBottom: "4px",
               }}
             >
-              Habits & Goals
+              Habits & To-Do
             </div>
             <div
               style={{
@@ -333,7 +333,7 @@ export function HabitsPage({ state, setState }) {
                 lineHeight: 1.4,
               }}
             >
-              Daily habits build identity. Today's goals close the gap.
+              Daily habits build identity. Your to-do list closes the gap.
             </div>
           </div>
         </div>
@@ -352,7 +352,7 @@ export function HabitsPage({ state, setState }) {
             color={ACCENT}
           />
           <SummaryTile
-            label="GOALS TODAY"
+            label="TO-DO DONE"
             value={`${completedGoals}/${goals.length || 0}`}
             color="#22D3EE"
           />
@@ -594,9 +594,9 @@ export function HabitsPage({ state, setState }) {
         </Button>
       )}
 
-      {/* ── TODAY'S GOALS section ────────────────────────────────── */}
+      {/* ── TO-DO LIST section (persistent — does not reset daily) ──── */}
       <div style={{ marginTop: "32px" }}>
-        <SectionLabel accent="#22D3EE">TODAY'S GOALS</SectionLabel>
+        <SectionLabel accent="#22D3EE">TO-DO LIST</SectionLabel>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           {goals.length === 0 ? (
@@ -608,7 +608,7 @@ export function HabitsPage({ state, setState }) {
                   fontWeight: 500,
                 }}
               >
-                No goals set for today yet.
+                Nothing on your to-do list yet.
               </div>
             </GlassCard>
           ) : (
@@ -633,7 +633,7 @@ export function HabitsPage({ state, setState }) {
             value={newGoal}
             onChange={(e) => setNewGoal(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addGoal()}
-            placeholder="Add a goal for today…"
+            placeholder="Add a to-do…"
             style={{ marginBottom: 0, flex: 1 }}
           />
           <Button onClick={addGoal} style={{ minWidth: "80px" }}>

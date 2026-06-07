@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { storage, STORAGE_KEYS } from "../utils/storage.js";
 import { getSupabase } from "../utils/supabase.js";
 import { useAuth } from "./useAuth.js";
+import { computeSharedStats, upsertMyProfile } from "../utils/friends.js";
 
 const INITIAL_STATE = {
   user: "",
@@ -69,6 +70,8 @@ const INITIAL_STATE = {
   celebrationsShown: {},
   // Highest net worth ever recorded — drives the "new high" celebration.
   netWorthHigh: 0,
+  // Longest gym streak ever recorded — shared with friends as "longest streak".
+  streakHigh: 0,
   // ISO date the Overseer proactively nudged the user today (one nudge/day).
   proactiveNudgeShown: "",
   // ── 1-line daily journal ────────────────────────────────────────────
@@ -243,6 +246,16 @@ export const useLifeOSState = () => {
         setLastSyncedAt(new Date().toISOString());
         setSyncStatus("idle");
       }
+
+      // Mirror identity + curated shared stats into the public profile row so
+      // friends can read up-to-date numbers. Best-effort: a failure here must
+      // not flip the main sync status to error.
+      upsertMyProfile(supabase, {
+        userId: auth.user.id,
+        email: auth.user.email,
+        displayName: state.user,
+        stats: computeSharedStats(state),
+      }).catch((e) => console.warn("[LifeOS] profile upsert failed:", e));
     }, 1500); // longer than local debounce — fewer network writes
 
     return () => clearTimeout(t);
