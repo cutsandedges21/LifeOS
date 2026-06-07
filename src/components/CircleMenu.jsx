@@ -125,6 +125,35 @@ function MenuItem({ item, index, totalItems, isOpen, isActive, onSelect }) {
         }}
       >
         {item.icon}
+        {/* Unread badge (e.g. pending friend requests). Only visible while the
+            menu is open since items collapse into the trigger when closed —
+            the trigger carries its own dot for the closed state. */}
+        {(item.badge || 0) > 0 && (
+          <span
+            style={{
+              position: "absolute",
+              top: -3,
+              right: -3,
+              minWidth: 18,
+              height: 18,
+              padding: "0 5px",
+              borderRadius: 9,
+              background: "#F87171",
+              color: "#fff",
+              fontSize: 10,
+              fontWeight: 800,
+              fontFamily: "var(--font-mono)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              border: "2px solid var(--bg)",
+              boxShadow: "0 2px 6px rgba(0,0,0,0.4)",
+              pointerEvents: "none",
+            }}
+          >
+            {item.badge > 9 ? "9+" : item.badge}
+          </span>
+        )}
         <AnimatePresence>
           {hovering && isOpen && (() => {
             const labelAbove = item.labelAbove ?? true;
@@ -168,7 +197,7 @@ function MenuItem({ item, index, totalItems, isOpen, isActive, onSelect }) {
   );
 }
 
-function MenuTrigger({ isOpen, setIsOpen, closeAnimationCallback, activeColor, activeIcon }) {
+function MenuTrigger({ isOpen, setIsOpen, closeAnimationCallback, activeColor, activeIcon, notify }) {
   const animate = useAnimationControls();
 
   const closeAnimation = async () => {
@@ -184,6 +213,25 @@ function MenuTrigger({ isOpen, setIsOpen, closeAnimationCallback, activeColor, a
 
   return (
     <motion.div style={{ zIndex: 50, position: "relative" }}>
+      {/* Closed-state attention dot — surfaces pending friend requests even
+          when the menu is collapsed to just the trigger. */}
+      {notify && !isOpen && (
+        <span
+          style={{
+            position: "absolute",
+            top: 0,
+            right: 0,
+            width: 14,
+            height: 14,
+            borderRadius: 7,
+            background: "#F87171",
+            border: "2px solid var(--bg)",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.45)",
+            zIndex: 60,
+            pointerEvents: "none",
+          }}
+        />
+      )}
       <motion.button
         animate={animate}
         onClick={() => {
@@ -248,6 +296,8 @@ export function CircleMenu({ items, activeId, onSelect }) {
 
   const visibleItems = items.filter((it) => !it.hidden);
   const activeItem = visibleItems.find((it) => it.id === activeId) || visibleItems[0];
+  // Any non-active item with a badge → show the closed-state dot on the trigger.
+  const hasNotify = visibleItems.some((it) => (it.badge || 0) > 0 && it.id !== activeId);
 
   const closeAnimationCallback = async () => {
     // Items now collapse downward into the trigger via their own animate prop;
@@ -325,6 +375,7 @@ export function CircleMenu({ items, activeId, onSelect }) {
             closeAnimationCallback={closeAnimationCallback}
             activeColor={activeItem?.color || "#7C6DFA"}
             activeIcon={activeItem?.icon}
+            notify={hasNotify}
           />
         </div>
 
