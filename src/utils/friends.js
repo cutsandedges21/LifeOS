@@ -10,6 +10,30 @@
 
 import { todayISO, isoFromDate } from "./formatters.js";
 
+// ── Display name ──────────────────────────────────────────────────────────
+// Friends are identified by the local-part of their email (everything before
+// "@"). The emails are stored on the friendship row at send time, so this
+// works even before the counterpart has synced a profile.
+export function localPart(email) {
+  if (typeof email !== "string") return null;
+  const i = email.indexOf("@");
+  const local = i > 0 ? email.slice(0, i) : email;
+  return local || null;
+}
+
+// Given a hydrated friend item ({ friendship, profile, isRequester }) return
+// the other person's display name = their email local-part.
+export function friendDisplayName(item) {
+  const f = item?.friendship || {};
+  const otherEmail = item?.isRequester ? f.addressee_email : f.requester_email;
+  return (
+    localPart(otherEmail) ||
+    localPart(item?.profile?.email) ||
+    item?.profile?.display_name ||
+    "LifeOS user"
+  );
+}
+
 // ── Shared stats ────────────────────────────────────────────────────────────
 // Curated, non-sensitive subset friends are allowed to see. Deliberately NO
 // finances. Computed from local state so it works offline; pushed to the
@@ -99,10 +123,8 @@ export async function upsertMyProfile(supabase, { userId, email, displayName, st
   const row = {
     user_id: userId,
     email: email || null,
-    // Fall back to the email local-part so friends always see *something*.
-    display_name:
-      (displayName && displayName.trim()) ||
-      (email ? email.split("@")[0] : "LifeOS user"),
+    // Friends identify each other by email local-part (text before "@").
+    display_name: localPart(email) || (displayName && displayName.trim()) || "LifeOS user",
     ...(stats || {}),
     stats_updated_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -166,8 +188,9 @@ export async function fetchFriendData(supabase, myId) {
 }
 
 // Resolve an email to a user id and create a pending request. Returns
-// { ok, error } with a human-readable error message on failure.
-export async function sendFriendRequest(supabase, rawEmail, myId) {
+// { ok, error } with a human-readable error message on failure. `myEmail` is
+// stored on the row so the addressee can display the sender by email local-part.
+export async function sendFriendRequest(supabase, rawEmail, myId, myEmail) {
   const email = (rawEmail || "").trim().toLowerCase();
   if (!email) return { ok: false, error: "Enter an email address." };
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
@@ -186,6 +209,8 @@ export async function sendFriendRequest(supabase, rawEmail, myId) {
     requester_id: myId,
     addressee_id: targetId,
     status: "pending",
+    requester_email: (myEmail || "").toLowerCase() || null,
+    addressee_email: email,
   });
   if (error) {
     // 23505 = unique_violation on the normalized-pair index.

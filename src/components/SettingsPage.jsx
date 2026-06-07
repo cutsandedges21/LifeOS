@@ -598,7 +598,8 @@ function ProfileNameCard({ state, setState }) {
         }}
       />
       <div style={{ fontSize: "11px", color: "var(--text-faint)", marginTop: "8px", lineHeight: 1.4 }}>
-        This is the name your friends see when they compare stats with you.
+        Used for your greeting. Friends see you by your email name (the part
+        before the "@").
       </div>
     </GlassCard>
   );

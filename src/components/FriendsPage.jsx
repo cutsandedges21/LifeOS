@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GlassCard } from "./GlassComponents.jsx";
 import { SectionLabel, Input, Button } from "./UI.jsx";
-import { computeSharedStats } from "../utils/friends.js";
+import { computeSharedStats, friendDisplayName, localPart } from "../utils/friends.js";
 
 const ACCENT = "#60A5FA"; // sky-blue — inherited from the old Account page
 
@@ -23,7 +23,7 @@ export function FriendsPage({ hub, state, auth }) {
 
   const signedIn = auth?.status === "signed-in" && auth?.user;
   const myStats = computeSharedStats(state);
-  const myName = (state?.user || "").trim() || "You";
+  const myName = localPart(auth?.user?.email) || "You";
 
   const handleSend = async () => {
     if (!email.trim() || busy) return;
@@ -198,8 +198,8 @@ function PageHeader() {
   );
 }
 
-function Avatar({ name, email }) {
-  const initials = ((name || email || "?").trim().slice(0, 2) || "?").toUpperCase();
+function Avatar({ name }) {
+  const initials = ((name || "?").trim().slice(0, 2) || "?").toUpperCase();
   return (
     <div
       style={{
@@ -223,16 +223,12 @@ function Avatar({ name, email }) {
   );
 }
 
-function displayName(profile, fallback = "LifeOS user") {
-  return profile?.display_name || profile?.email || fallback;
-}
-
 function RequestRow({ item, onAccept, onDecline }) {
-  const name = displayName(item.profile);
+  const name = friendDisplayName(item);
   return (
     <GlassCard style={{ padding: "14px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-        <Avatar name={item.profile?.display_name} email={item.profile?.email} />
+        <Avatar name={name} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {name}
@@ -258,12 +254,12 @@ function RequestRow({ item, onAccept, onDecline }) {
 }
 
 function OutgoingRow({ item, onCancel }) {
-  const name = displayName(item.profile);
+  const name = friendDisplayName(item);
   const declined = item.friendship.status === "declined";
   return (
     <GlassCard style={{ padding: "14px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-        <Avatar name={item.profile?.display_name} email={item.profile?.email} />
+        <Avatar name={name} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {name}
@@ -284,7 +280,7 @@ function OutgoingRow({ item, onCancel }) {
 }
 
 function FriendCard({ item, expanded, onToggle, onUnfriend, myStats, myName }) {
-  const name = displayName(item.profile);
+  const name = friendDisplayName(item);
   const p = item.profile;
   return (
     <GlassCard style={{ padding: "14px" }}>
@@ -292,7 +288,7 @@ function FriendCard({ item, expanded, onToggle, onUnfriend, myStats, myName }) {
         onClick={onToggle}
         style={{ display: "flex", alignItems: "center", gap: "12px", cursor: "pointer" }}
       >
-        <Avatar name={p?.display_name} email={p?.email} />
+        <Avatar name={name} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: "15px", fontWeight: 800, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {name}

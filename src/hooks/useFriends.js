@@ -6,6 +6,7 @@ import {
   sendFriendRequest,
   respondToRequest,
   removeFriendship,
+  friendDisplayName,
 } from "../utils/friends.js";
 
 // useFriends — owns all friend state, realtime, and notifications.
@@ -22,6 +23,7 @@ export function useFriends(auth) {
   const [loading, setLoading] = useState(false);
 
   const myId = auth?.user?.id || null;
+  const myEmail = auth?.user?.email || null;
   const signedIn = auth?.status === "signed-in" && !!myId;
 
   // Snapshot of the last-seen friendships so realtime events can be classified
@@ -113,11 +115,11 @@ export function useFriends(auth) {
     async (email) => {
       const supabase = getSupabase();
       if (!supabase || !myId) return { ok: false, error: "Sign in first." };
-      const res = await sendFriendRequest(supabase, email, myId);
+      const res = await sendFriendRequest(supabase, email, myId, myEmail);
       if (res.ok) await refresh();
       return res;
     },
-    [myId, refresh]
+    [myId, myEmail, refresh]
   );
 
   const accept = useCallback(
@@ -165,21 +167,13 @@ export function useFriends(auth) {
   };
 }
 
-function nameFor(item) {
-  return (
-    item?.profile?.display_name ||
-    item?.profile?.email ||
-    "Someone"
-  );
-}
-
 // Compare the previous seen snapshot with freshly-fetched data and fire one
 // in-app/OS notification per meaningful change.
 function notifyOnDiff(seen, next) {
   // New incoming requests.
   for (const item of next.incoming) {
     if (!seen.incomingIds.has(item.friendship.id)) {
-      showNotification("New friend request", `${nameFor(item)} wants to connect on LifeOS.`, {
+      showNotification("New friend request", `${friendDisplayName(item)} wants to connect on LifeOS.`, {
         tag: `friend-req-${item.friendship.id}`,
       });
     }
@@ -201,11 +195,11 @@ function notifyOnDiff(seen, next) {
     if (!item) continue; // canceled/removed — nothing to announce
     const status = item.friendship.status;
     if (status === "accepted") {
-      showNotification("Friend request accepted", `${nameFor(item)} accepted your request.`, {
+      showNotification("Friend request accepted", `${friendDisplayName(item)} accepted your request.`, {
         tag: `friend-acc-${id}`,
       });
     } else if (status === "declined") {
-      showNotification("Friend request declined", `${nameFor(item)} declined your request.`, {
+      showNotification("Friend request declined", `${friendDisplayName(item)} declined your request.`, {
         tag: `friend-dec-${id}`,
       });
     }
