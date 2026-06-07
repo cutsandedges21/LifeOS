@@ -39,6 +39,28 @@ export function FriendsPage({ hub, state, auth }) {
     }
   };
 
+  // Invite someone who isn't on LifeOS yet. No email backend — use the native
+  // share sheet (mobile / installed PWA) and fall back to copying the link.
+  const handleInvite = async () => {
+    const url = (typeof window !== "undefined" && window.location.origin) || "";
+    const text = "Join me on LifeOS — track your habits, goals, gym & sleep, and we can compare stats.";
+    setMsg(null);
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "LifeOS", text, url });
+      } catch (_) {
+        /* user dismissed the share sheet — not an error */
+      }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(`${text} ${url}`);
+      setMsg({ type: "ok", text: "Invite link copied to clipboard." });
+    } catch (_) {
+      setMsg({ type: "ok", text: `Share this link: ${url}` });
+    }
+  };
+
   // ── Signed-out gate ─────────────────────────────────────────────────────
   if (!signedIn) {
     return (
@@ -93,6 +115,26 @@ export function FriendsPage({ hub, state, auth }) {
             {busy ? "…" : "Send"}
           </Button>
         </div>
+
+        {/* Invite — for people not on LifeOS yet */}
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", margin: "16px 0 14px" }}>
+          <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+          <span style={{ fontSize: "10px", color: "var(--text-faint)", fontFamily: "var(--font-mono)", letterSpacing: "0.12em" }}>
+            OR
+          </span>
+          <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+        </div>
+        <Button
+          onClick={handleInvite}
+          variant="ghost"
+          style={{ width: "100%", border: `1px dashed ${ACCENT}66`, color: ACCENT, fontWeight: 700 }}
+        >
+          ↗ Invite a friend to LifeOS
+        </Button>
+        <div style={{ fontSize: "11px", color: "var(--text-faint)", marginTop: "8px", lineHeight: 1.4, textAlign: "center" }}>
+          Not on LifeOS yet? Share the app — add them by email once they sign up.
+        </div>
+
         <AnimatePresence>
           {msg && (
             <motion.div
