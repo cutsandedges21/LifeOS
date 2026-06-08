@@ -34,10 +34,26 @@ export function friendDisplayName(item) {
   );
 }
 
+// ── Shareable stats catalog ─────────────────────────────────────────────────
+// Single source of truth for every stat a friend can compare. Drives BOTH the
+// compare dropdown rows and the "What you share" toggles in FriendsPage, so the
+// two can never drift. `money: true` stats are formatted as currency (fmt$);
+// everything else renders as value + `suffix`.
+export const SHAREABLE_STATS = [
+  { key: "current_streak", label: "Current streak", suffix: "d" },
+  { key: "longest_streak", label: "Longest streak", suffix: "d" },
+  { key: "habit_pct", label: "Habits today", suffix: "%" },
+  { key: "todo_pct", label: "To-do done", suffix: "%" },
+  { key: "gym_days_week", label: "Gym (7d)", suffix: "d" },
+  { key: "avg_sleep", label: "Avg sleep", suffix: "h" },
+  { key: "net_today", label: "Net today", money: true },
+];
+
 // ── Shared stats ────────────────────────────────────────────────────────────
-// Curated, non-sensitive subset friends are allowed to see. Deliberately NO
-// finances. Computed from local state so it works offline; pushed to the
-// caller's own profile row on sync.
+// Curated subset friends are allowed to see. Computed from local state so it
+// works offline; pushed to the caller's own profile row on sync. What actually
+// leaves the device is gated by the user's sharePrefs via applySharePrefs() —
+// a toggled-off stat is written as NULL (withheld), never as a misleading 0.
 export function computeSharedStats(state) {
   const habits = state.habits || [];
   const completions = state.habitCompletions || {};
@@ -60,7 +76,37 @@ export function computeSharedStats(state) {
     todo_pct,
     gym_days_week: gymDaysThisWeek(state),
     avg_sleep: avgSleepHours(state),
+    net_today: netToday(state),
   };
+}
+
+// "Money made today" = sum of today's income transactions minus today's
+// expense transactions. One-off transactions only; recurring subscriptions are
+// monthly commitments, not a daily event, so they're excluded. May be negative.
+function netToday(state) {
+  const txns = state.finances?.transactions || [];
+  const iso = todayISO();
+  let net = 0;
+  for (const t of txns) {
+    if (t.date !== iso) continue;
+    const amt = Number(t.amount) || 0;
+    if (t.type === "income") net += amt;
+    else if (t.type === "expense") net -= amt;
+  }
+  return net;
+}
+
+// Apply the user's per-stat sharing preferences to a computed stats object.
+// Any stat whose pref is explicitly `false` becomes `null` so it is withheld
+// from the profile row (and thus from friends). A missing pref defaults to
+// shared. Returns a new object; never mutates the input.
+export function applySharePrefs(stats, prefs) {
+  const p = prefs || {};
+  const out = { ...stats };
+  for (const key of Object.keys(out)) {
+    if (p[key] === false) out[key] = null;
+  }
+  return out;
 }
 
 // Gym visits in the trailing 7 days (today inclusive).

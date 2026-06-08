@@ -2,7 +2,27 @@ import { useState, useEffect, useRef } from "react";
 import { storage, STORAGE_KEYS } from "../utils/storage.js";
 import { getSupabase } from "../utils/supabase.js";
 import { useAuth } from "./useAuth.js";
-import { computeSharedStats, upsertMyProfile } from "../utils/friends.js";
+import {
+  computeSharedStats,
+  upsertMyProfile,
+  applySharePrefs,
+  SHAREABLE_STATS,
+} from "../utils/friends.js";
+
+// Default sharing prefs: every shareable stat is ON. Derived from the catalog
+// so adding a stat to SHAREABLE_STATS automatically gives it a default here.
+const DEFAULT_SHARE_PREFS = Object.fromEntries(
+  SHAREABLE_STATS.map((s) => [s.key, true])
+);
+
+// Back-fill sharePrefs after any INITIAL_STATE merge. The top-level spread is
+// shallow, so a saved row with a partial sharePrefs object (e.g. predating a
+// newly-added stat) would otherwise be missing the new key. Deep-merging the
+// defaults underneath guarantees every shareable stat has a boolean.
+const withSharePrefs = (merged) => ({
+  ...merged,
+  sharePrefs: { ...DEFAULT_SHARE_PREFS, ...(merged.sharePrefs || {}) },
+});
 
 const INITIAL_STATE = {
   user: "",
@@ -10,6 +30,10 @@ const INITIAL_STATE = {
   // Soft click sound on button/control taps. On by default; muted via the
   // Sound card in Settings. Synced like any other preference.
   soundEnabled: true,
+  // Per-stat sharing controls for the Friends page. Each shareable stat maps
+  // to a boolean; false means the stat is withheld from friends (written as
+  // NULL to the profile row). All on by default — see DEFAULT_SHARE_PREFS.
+  sharePrefs: { ...DEFAULT_SHARE_PREFS },
   workoutDay: "",
   whoop: { recovery: 0, sleep: 0, strain: 0, hrv: 0, rhr: 0, status: "gray", advice: "" },
   goals: [],
@@ -127,7 +151,7 @@ export const useLifeOSState = () => {
   const auth = useAuth();
   const [state, setState] = useState(() => {
     const saved = storage.get(STORAGE_KEYS.STATE);
-    return saved ? { ...INITIAL_STATE, ...saved } : INITIAL_STATE;
+    return saved ? withSharePrefs({ ...INITIAL_STATE, ...saved }) : INITIAL_STATE;
   });
 
   // isLoaded gates effects + UI: true once the local hydrate is done AND
@@ -188,7 +212,7 @@ export const useLifeOSState = () => {
         if (data?.state) {
           // Merge: cloud wins, but spread INITIAL_STATE first so any
           // newly-added fields not present in the saved row still resolve.
-          setState({ ...INITIAL_STATE, ...data.state });
+          setState(withSharePrefs({ ...INITIAL_STATE, ...data.state }));
           setLastSyncedAt(data.updated_at || new Date().toISOString());
         }
         setSyncStatus("idle");
@@ -254,7 +278,8 @@ export const useLifeOSState = () => {
         userId: auth.user.id,
         email: auth.user.email,
         displayName: state.user,
-        stats: computeSharedStats(state),
+        // Withhold anything the user has toggled off (written as NULL).
+        stats: applySharePrefs(computeSharedStats(state), state.sharePrefs),
       }).catch((e) => console.warn("[LifeOS] profile upsert failed:", e));
     }, 1500); // longer than local debounce — fewer network writes
 

@@ -880,7 +880,7 @@ export default function LifeOS() {
             {tab === "gym" && <GymPage state={state} setState={setState} />}
             {tab === "habits" && <HabitsPage state={state} setState={setState} />}
             {tab === "friends" && (
-              <FriendsPage hub={friendsHub} state={state} auth={auth} />
+              <FriendsPage hub={friendsHub} state={state} auth={auth} setState={setState} />
             )}
             {tab === "settings" && (
               <SettingsPage
