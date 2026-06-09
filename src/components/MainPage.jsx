@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { GlassCard, HeroSection } from "./GlassComponents.jsx";
 import { SectionLabel } from "./UI.jsx";
+import { LockGate } from "./LockGate.jsx";
 import { TrendsCard, WeeklyReviewCard } from "./Insights.jsx";
 import { computeNetWorth } from "../utils/snapshots.js";
 import { describeAction } from "../utils/overseerActions.js";
@@ -48,7 +49,9 @@ export function MainPage({
   setTab, // App passes this so the "manage goals" pill can jump to the habits page
   onConfirmAction,
   onDismissAction,
+  signedIn = false, // gates Overseer + Weekly Review behind sign-in
 }) {
+  const goToSignIn = () => setTab?.("settings");
   const completedGoals = state.goals.filter((g) => g.done).length;
   const goalsTotal = state.goals.length;
 
@@ -61,6 +64,7 @@ export function MainPage({
   return (
     <div style={{ padding: "0 clamp(14px, 4.5vw, 20px)" }}>
       {/* Hero Section */}
+      <div data-tour="home">
       <HeroSection
         greeting={greeting}
         metrics={{
@@ -72,6 +76,7 @@ export function MainPage({
           goals: `${completedGoals}/${goalsTotal}`,
         }}
       />
+      </div>
 
       {/* Quick link to the Habits & Goals page. The TODO list and the new
           habit tracker both live there now — this card replaces the inline
