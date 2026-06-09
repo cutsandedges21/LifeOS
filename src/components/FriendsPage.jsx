@@ -1,8 +1,14 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GlassCard } from "./GlassComponents.jsx";
-import { SectionLabel, Input, Button } from "./UI.jsx";
-import { computeSharedStats, friendDisplayName, localPart } from "../utils/friends.js";
+import { SectionLabel, Input, Button, Toggle } from "./UI.jsx";
+import {
+  computeSharedStats,
+  friendDisplayName,
+  localPart,
+  SHAREABLE_STATS,
+} from "../utils/friends.js";
+import { fmt$ } from "../utils/formatters.js";
 
 const ACCENT = "#60A5FA"; // sky-blue — inherited from the old Account page
 
@@ -12,10 +18,11 @@ const ACCENT = "#60A5FA"; // sky-blue — inherited from the old Account page
 // this component is purely presentational + action dispatch.
 //
 // Props:
-//   hub   — the useFriends() return value
-//   state — local LifeOS state (for computing "your" comparison stats)
-//   auth  — auth context (signed-in gate)
-export function FriendsPage({ hub, state, auth }) {
+//   hub      — the useFriends() return value
+//   state    — local LifeOS state (for computing "your" comparison stats)
+//   auth     — auth context (signed-in gate)
+//   setState — state updater (for the "What you share" sharing toggles)
+export function FriendsPage({ hub, state, auth, setState }) {
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null); // { type: 'ok'|'err', text }
@@ -36,6 +43,28 @@ export function FriendsPage({ hub, state, auth }) {
       setEmail("");
     } else {
       setMsg({ type: "err", text: res.error });
+    }
+  };
+
+  // Invite someone who isn't on LifeOS yet. No email backend — use the native
+  // share sheet (mobile / installed PWA) and fall back to copying the link.
+  const handleInvite = async () => {
+    const url = (typeof window !== "undefined" && window.location.origin) || "";
+    const text = "Join me on LifeOS — track your habits, goals, gym & sleep, and we can compare stats.";
+    setMsg(null);
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "LifeOS", text, url });
+      } catch (_) {
+        /* user dismissed the share sheet — not an error */
+      }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(`${text} ${url}`);
+      setMsg({ type: "ok", text: "Invite link copied to clipboard." });
+    } catch (_) {
+      setMsg({ type: "ok", text: `Share this link: ${url}` });
     }
   };
 
@@ -93,6 +122,26 @@ export function FriendsPage({ hub, state, auth }) {
             {busy ? "…" : "Send"}
           </Button>
         </div>
+
+        {/* Invite — for people not on LifeOS yet */}
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", margin: "16px 0 14px" }}>
+          <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+          <span style={{ fontSize: "10px", color: "var(--text-faint)", fontFamily: "var(--font-mono)", letterSpacing: "0.12em" }}>
+            OR
+          </span>
+          <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+        </div>
+        <Button
+          onClick={handleInvite}
+          variant="ghost"
+          style={{ width: "100%", border: `1px dashed ${ACCENT}66`, color: ACCENT, fontWeight: 700 }}
+        >
+          ↗ Invite a friend to LifeOS
+        </Button>
+        <div style={{ fontSize: "11px", color: "var(--text-faint)", marginTop: "8px", lineHeight: 1.4, textAlign: "center" }}>
+          Not on LifeOS yet? Share the app — add them by email once they sign up.
+        </div>
+
         <AnimatePresence>
           {msg && (
             <motion.div
@@ -178,6 +227,9 @@ export function FriendsPage({ hub, state, auth }) {
           ))}
         </div>
       )}
+
+      {/* Sharing controls — what the user exposes to all friends */}
+      <ShareSettings state={state} setState={setState} />
     </div>
   );
 }
@@ -186,7 +238,7 @@ export function FriendsPage({ hub, state, auth }) {
 
 function PageHeader() {
   return (
-    <GlassCard style={{ padding: "20px", marginBottom: "16px" }}>
+    <GlassCard data-tour="friends" style={{ padding: "20px", marginBottom: "16px" }}>
       <div style={{ fontSize: "26px", fontWeight: 900, letterSpacing: "-0.02em", color: "var(--text)", lineHeight: 1.05, marginBottom: "6px" }}>
         Friends
       </div>
@@ -294,7 +346,9 @@ function FriendCard({ item, expanded, onToggle, onUnfriend, myStats, myName }) {
             {name}
           </div>
           <div style={{ fontSize: "11px", color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>
-            🔥 {p?.current_streak ?? 0}d streak · tap to compare
+            {p?.current_streak == null
+              ? "tap to compare"
+              : `🔥 ${p.current_streak}d streak · tap to compare`}
           </div>
         </div>
         <span style={{ color: "var(--text-faint)", fontSize: "18px", transform: expanded ? "rotate(90deg)" : "none", transition: "transform 0.2s" }}>
@@ -325,12 +379,16 @@ function FriendCard({ item, expanded, onToggle, onUnfriend, myStats, myName }) {
                       {trunc(name)}
                     </span>
                   </div>
-                  <CompareRow label="Current streak" mine={myStats.current_streak} theirs={p.current_streak} suffix="d" />
-                  <CompareRow label="Longest streak" mine={myStats.longest_streak} theirs={p.longest_streak} suffix="d" />
-                  <CompareRow label="Habits today" mine={myStats.habit_pct} theirs={p.habit_pct} suffix="%" />
-                  <CompareRow label="To-do done" mine={myStats.todo_pct} theirs={p.todo_pct} suffix="%" />
-                  <CompareRow label="Gym (7d)" mine={myStats.gym_days_week} theirs={p.gym_days_week} suffix="d" />
-                  <CompareRow label="Avg sleep" mine={myStats.avg_sleep} theirs={Number(p.avg_sleep)} suffix="h" />
+                  {SHAREABLE_STATS.map((s) => (
+                    <CompareRow
+                      key={s.key}
+                      label={s.label}
+                      mine={myStats[s.key]}
+                      theirs={p[s.key]}
+                      suffix={s.suffix}
+                      money={s.money}
+                    />
+                  ))}
                 </>
               )}
 
@@ -354,29 +412,82 @@ function trunc(s, n = 10) {
 }
 
 // One stat, two values, winner highlighted. Higher is better for every stat
-// we share (streaks, %, gym days, sleep hours).
-function CompareRow({ label, mine, theirs, suffix }) {
+// we share (streaks, %, gym days, sleep hours, daily net). A `theirs` of null
+// means the friend has toggled that stat off — we show "🔒 Hidden" instead of a
+// number and skip win-highlighting for the row. `money` stats format as
+// currency (fmt$); everything else as value + suffix. Your own column always
+// shows your real numbers regardless of your own sharing prefs.
+function CompareRow({ label, mine, theirs, suffix, money }) {
+  const hidden = theirs === null || theirs === undefined;
   const m = Number(mine) || 0;
-  const t = Number(theirs) || 0;
-  const mineWins = m > t;
-  const theyWin = t > m;
+  const t = hidden ? null : Number(theirs) || 0;
+  const mineWins = !hidden && m > t;
+  const theyWin = !hidden && t > m;
   const win = { color: "#34D399", fontWeight: 900 };
   const base = { color: "var(--text)", fontWeight: 700 };
+  const display = (n) => (money ? fmt$(n) : `${fmt(n)}${suffix || ""}`);
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0" }}>
       <span style={{ ...(mineWins ? win : base), fontSize: "15px", fontFamily: "var(--font-mono)", minWidth: "48px" }}>
-        {fmt(m)}{suffix}
+        {display(m)}
       </span>
-      <span style={{ fontSize: "11px", color: "var(--text-faint)", fontFamily: "var(--font-mono)", letterSpacing: "0.06em", textAlign: "center", flex: 1 }}>
+      <span style={{ fontSize: "11px", color: "var(--text-faint)", fontFamily: "var(--font-mono)", letterSpacing: "0.06em", textAlign: "center", flex: 1, padding: "0 8px" }}>
         {label}
       </span>
-      <span style={{ ...(theyWin ? win : base), fontSize: "15px", fontFamily: "var(--font-mono)", minWidth: "48px", textAlign: "right" }}>
-        {fmt(t)}{suffix}
-      </span>
+      {hidden ? (
+        <span style={{ fontSize: "12px", color: "var(--text-faint)", fontFamily: "var(--font-mono)", minWidth: "48px", textAlign: "right", whiteSpace: "nowrap" }}>
+          🔒 Hidden
+        </span>
+      ) : (
+        <span style={{ ...(theyWin ? win : base), fontSize: "15px", fontFamily: "var(--font-mono)", minWidth: "48px", textAlign: "right" }}>
+          {display(t)}
+        </span>
+      )}
     </div>
   );
 }
 
 function fmt(n) {
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
+}
+
+// ── Sharing controls ──────────────────────────────────────────────────────────
+// "What you share" — a per-stat on/off list controlling what leaves the user's
+// device for friends to read. Off ⇒ the stat is withheld (written as NULL) on
+// the next sync. Reads/writes state.sharePrefs; defaults a missing pref to on.
+function ShareSettings({ state, setState }) {
+  const prefs = state?.sharePrefs || {};
+  const setPref = (key, value) =>
+    setState((prev) => ({
+      ...prev,
+      sharePrefs: { ...(prev.sharePrefs || {}), [key]: value },
+    }));
+
+  return (
+    <div style={{ marginTop: "20px" }}>
+      <SectionLabel accent={ACCENT}>WHAT YOU SHARE</SectionLabel>
+      <GlassCard style={{ padding: "20px" }}>
+        <div style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.5, marginBottom: "16px" }}>
+          Choose what your friends can compare against. Turning a stat off
+          withholds it completely — friends see “🔒 Hidden,” never your number.
+        </div>
+        {SHAREABLE_STATS.map((s) => (
+          <div key={s.key}>
+            <Toggle
+              label={s.label}
+              checked={prefs[s.key] !== false}
+              onChange={(v) => setPref(s.key, v)}
+              style={s.money ? { marginBottom: "4px" } : {}}
+            />
+            {s.money && (
+              <div style={{ fontSize: "11px", color: "var(--text-faint)", marginBottom: "12px", lineHeight: 1.4 }}>
+                Sensitive — shares only today’s net (income − expenses), never
+                your balance or net worth.
+              </div>
+            )}
+          </div>
+        ))}
+      </GlassCard>
+    </div>
+  );
 }

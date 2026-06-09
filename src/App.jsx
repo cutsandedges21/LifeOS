@@ -11,6 +11,7 @@ import { HabitsPage } from "./components/HabitsPage.jsx";
 import { FriendsPage } from "./components/FriendsPage.jsx";
 import { SettingsPage } from "./components/SettingsPage.jsx";
 import { IntroAnimation } from "./components/IntroAnimation.jsx";
+import { OnboardingTour } from "./components/OnboardingTour.jsx";
 import { PageSkeleton } from "./components/SkeletonLoader.jsx";
 import { AnimatedBackground } from "./components/AnimatedBackground.jsx";
 import { CircleMenu } from "./components/CircleMenu.jsx";
@@ -23,6 +24,7 @@ import { useClickSound } from "./hooks/useClickSound.js";
 import { playClick } from "./utils/sound.js";
 import { getPageAccent, getPageTint, cssVarsForTheme } from "./theme/index.js";
 import { dayStr, getTodayDay, todayISO, isoFromDate } from "./utils/formatters.js";
+import { shouldStartTour } from "./utils/onboarding.js";
 import {
   buildTodaySnapshot,
   upsertSnapshot,
@@ -208,6 +210,31 @@ export default function LifeOS() {
   // Active celebration event (one at a time). Set by the detection effect
   // below; cleared by Celebration's auto-dismiss or user tap.
   const [celebration, setCelebration] = useState(null);
+
+  // ── First-run guided tour ──────────────────────────────────────────────
+  // Signed-in users see it once (synced `onboardingDone` flag). Anonymous users
+  // see it on every load (no persistence). It only starts once the app is ready
+  // and the intro splash has finished. `tourDismissed` is per-mount, so an
+  // anonymous user who skips it won't be re-prompted until the next refresh.
+  const signedIn = auth?.status === "signed-in";
+  const [tourOpen, setTourOpen] = useState(false);
+  const [tourDismissed, setTourDismissed] = useState(false);
+  useEffect(() => {
+    if (!isLoaded || showIntro || tourOpen || tourDismissed) return;
+    if (shouldStartTour({ signedIn, onboardingDone: state.onboardingDone })) {
+      setTourOpen(true);
+    }
+  }, [isLoaded, showIntro, tourOpen, tourDismissed, signedIn, state.onboardingDone]);
+
+  const endTour = () => {
+    setTourOpen(false);
+    setTourDismissed(true);
+    if (signedIn) setState((p) => ({ ...p, onboardingDone: true }));
+  };
+  const startTour = () => {
+    setTourDismissed(false);
+    setTourOpen(true);
+  };
   const chatRef = useRef(null);
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
@@ -872,15 +899,16 @@ export default function LifeOS() {
                 greeting={greeting}
                 overseerCap={overseerCap}
                 setTab={setTab}
+                signedIn={signedIn}
               />
             )}
-            {tab === "finances" && <FinancesPage state={state} setState={setState} />}
+            {tab === "finances" && <FinancesPage state={state} setState={setState} signedIn={signedIn} setTab={setTab} />}
             {tab === "brand" && <BrandPage state={state} setState={setState} />}
-            {tab === "health" && <HealthPage state={state} setState={setState} />}
-            {tab === "gym" && <GymPage state={state} setState={setState} />}
+            {tab === "health" && <HealthPage state={state} setState={setState} signedIn={signedIn} setTab={setTab} />}
+            {tab === "gym" && <GymPage state={state} setState={setState} signedIn={signedIn} setTab={setTab} />}
             {tab === "habits" && <HabitsPage state={state} setState={setState} />}
             {tab === "friends" && (
-              <FriendsPage hub={friendsHub} state={state} auth={auth} />
+              <FriendsPage hub={friendsHub} state={state} auth={auth} setState={setState} />
             )}
             {tab === "settings" && (
               <SettingsPage
@@ -891,6 +919,7 @@ export default function LifeOS() {
                 syncStatus={syncStatus}
                 lastSyncedAt={lastSyncedAt}
                 syncError={syncError}
+                onReplayTour={startTour}
               />
             )}
           </motion.div>
@@ -900,6 +929,9 @@ export default function LifeOS() {
       {/* Celebration overlay — fires for streak milestones, perfect days,
           and new net worth highs. See celebration detection effect above. */}
       <Celebration event={celebration} onDismiss={() => setCelebration(null)} />
+
+      {/* First-run guided tour — overlays the whole app; drives setTab. */}
+      <OnboardingTour open={tourOpen} onClose={endTour} setTab={setTab} />
 
       {/* Bottom Nav - CircleMenu — 7 visible items keep Home at the apex
           (middle index of an odd-length half-circle arc). */}

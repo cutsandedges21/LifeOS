@@ -70,3 +70,33 @@ main * { max-width: 100%; }
   }
 }
 
+/* ── Onboarding tour highlight ──────────────────────────────────────────────
+   The glow is a pseudo-element ring rather than a box-shadow on the element
+   itself, because cards render their box-shadow as an INLINE style (via
+   framer-motion) which a class-based box-shadow can't override. The ::after
+   ring is independent of the host's inline styles and is anchored to the
+   element, so it tracks through scroll/resize with no coordinate math. */
+.tour-highlight {
+  position: relative; /* anchor for the ::after ring */
+  z-index: 1; /* lift the ring above adjacent cards within the page */
+}
+.tour-highlight::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: 24px;
+  border: 2px solid var(--accent-main, #7c6dfa);
+  box-shadow:
+    0 0 0 4px rgba(var(--accent-main-rgb), 0.16),
+    0 0 26px 6px rgba(var(--accent-main-rgb), 0.4);
+  pointer-events: none;
+  animation: tour-pulse 1.6s ease-in-out infinite;
+}
+@keyframes tour-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tour-highlight::after { animation: none; opacity: 0.9; }
+}
+
