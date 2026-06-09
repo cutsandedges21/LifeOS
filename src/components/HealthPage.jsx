@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { GlassCard, MetricCard } from "./GlassComponents.jsx";
 import { SectionLabel, Button } from "./UI.jsx";
+import { LockGate } from "./LockGate.jsx";
 import { Sparkline } from "./Sparkline.jsx";
 import { lastNSnapshots } from "../utils/snapshots.js";
 import {
@@ -11,7 +12,8 @@ import {
   getCurrentWeekSleep
 } from "../utils/formatters.js";
 
-export function HealthPage({ state, setState }) {
+export function HealthPage({ state, setState, signedIn = false, setTab }) {
+  const goToSignIn = () => setTab?.("settings");
   const [bedtime, setBedtime] = useState(state.settings?.sleepTime || "23:00");
   const [wakeTime, setWakeTime] = useState(state.settings?.wakeTime || "07:00");
   const [hoverDay, setHoverDay] = useState(null);
@@ -75,7 +77,7 @@ export function HealthPage({ state, setState }) {
   return (
     <div style={{ padding: "0 clamp(14px, 4.5vw, 20px)" }}>
       {/* Rest & Recovery Hero */}
-      <GlassCard style={{ padding: "30px 24px", textAlign: "center" }}>
+      <GlassCard data-tour="sleep" style={{ padding: "30px 24px", textAlign: "center" }}>
         <SectionLabel accent={recoveryColor}>REST & RECOVERY</SectionLabel>
         
         <div style={{ position: "relative", width: "160px", height: "160px", margin: "20px auto" }}>
@@ -169,6 +171,12 @@ export function HealthPage({ state, setState }) {
       </div>
 
       {/* 30-day sleep trend */}
+      <LockGate
+        signedIn={signedIn}
+        title="30-Day Sleep Trend"
+        note="Sign in to unlock your 30-day sleep history and averages."
+        onSignIn={goToSignIn}
+      >
       <GlassCard style={{ marginTop: "24px", padding: "20px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
           <SectionLabel accent="#34D399" style={{ marginBottom: 0 }}>30-DAY SLEEP TREND</SectionLabel>
@@ -193,6 +201,7 @@ export function HealthPage({ state, setState }) {
           </div>
         )}
       </GlassCard>
+      </LockGate>
 
       {/* Peak Curve Visualization */}
       <GlassCard style={{ marginTop: "24px", padding: "20px", marginBottom: "40px" }}>

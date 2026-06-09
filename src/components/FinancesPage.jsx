@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { BusinessCard, GlassCard } from "./GlassComponents.jsx";
 import { Input, Button, SectionLabel, Select } from "./UI.jsx";
+import { LockGate } from "./LockGate.jsx";
 import { Sparkline } from "./Sparkline.jsx";
 import { lastNSnapshots } from "../utils/snapshots.js";
 import { upcomingRenewals } from "../utils/notifications.js";
@@ -29,7 +30,8 @@ const formatDate = (iso) => {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 };
 
-export function FinancesPage({ state, setState }) {
+export function FinancesPage({ state, setState, signedIn = false, setTab }) {
+  const goToSignIn = () => setTab?.("settings");
   const [showAddBusiness, setShowAddBusiness] = useState(false);
   const [showAddSub, setShowAddSub] = useState(false);
   const [showAddTxn, setShowAddTxn] = useState(false);
@@ -286,7 +288,7 @@ export function FinancesPage({ state, setState }) {
   return (
     <div style={{ padding: "0 clamp(14px, 4.5vw, 20px)" }}>
       {/* ── ALL-TIME STATS ────────────────────────────────────────── */}
-      <GlassCard style={{ padding: "20px 20px 18px", marginBottom: "16px" }}>
+      <GlassCard data-tour="finances" style={{ padding: "20px 20px 18px", marginBottom: "16px" }}>
         <SectionLabel accent="var(--accent-main)">ALL TIME</SectionLabel>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0" }}>
 
@@ -355,6 +357,12 @@ export function FinancesPage({ state, setState }) {
       </GlassCard>
 
       {/* ── INCOME VS EXPENSE CHART ───────────────────────────────── */}
+      <LockGate
+        signedIn={signedIn}
+        title="Income vs Expense"
+        note="Sign in to unlock your last 6 months of income and expense trends."
+        onSignIn={goToSignIn}
+      >
       <GlassCard style={{ padding: "20px" }}>
         <SectionLabel accent="#34D399">INCOME VS EXPENSE · LAST 6 MONTHS</SectionLabel>
 
@@ -460,8 +468,9 @@ export function FinancesPage({ state, setState }) {
           </div>
         </div>
       </GlassCard>
+      </LockGate>
 
-      {/* ── ACTIVE BUSINESSES ─────────────────────────────────────── 
+      {/* ── ACTIVE BUSINESSES ───────────────────────────────────────
       <div style={{ marginTop: "24px" }}>
         <SectionLabel accent="#34D399">ACTIVE BUSINESSES</SectionLabel>
 
@@ -556,6 +565,12 @@ export function FinancesPage({ state, setState }) {
       */}
 
       {/* ── SAVINGS GOALS ─────────────────────────────────────────── */}
+      <LockGate
+        signedIn={signedIn}
+        title="Savings Goals"
+        note="Sign in to unlock savings goals and track your targets."
+        onSignIn={goToSignIn}
+      >
       <GlassCard style={{ marginTop: "24px" }}>
         <SectionLabel accent="#FBBF24">SAVINGS GOALS</SectionLabel>
 
@@ -697,6 +712,7 @@ export function FinancesPage({ state, setState }) {
           </div>
         )}
       </GlassCard>
+      </LockGate>
 
       {/* ── SUBSCRIPTIONS ─────────────────────────────────────────── */}
       <GlassCard style={{ marginTop: "24px" }}>

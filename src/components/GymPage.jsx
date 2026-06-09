@@ -10,6 +10,7 @@ import {
 } from "framer-motion";
 import { GlassCard, SectionHeader } from "./GlassComponents.jsx";
 import { Input, Button } from "./UI.jsx";
+import { LockGate } from "./LockGate.jsx";
 import { lastNSnapshots } from "../utils/snapshots.js";
 import { getTodayDay, todayISO } from "../utils/formatters.js";
 import { useUndoToast } from "./UndoToast.jsx";
@@ -26,7 +27,8 @@ import {
   syncAutoVisit,
 } from "../utils/gymSession.js";
 
-export function GymPage({ state, setState }) {
+export function GymPage({ state, setState, signedIn = false, setTab }) {
+  const goToSignIn = () => setTab?.("settings");
   const [selectedDay, setSelectedDay] = useState(getTodayDay());
   const [showAddExercise, setShowAddExercise] = useState(false);
   const [showSkipModal, setShowSkipModal] = useState(false);
@@ -364,7 +366,7 @@ export function GymPage({ state, setState }) {
   return (
     <div style={{ padding: "0 clamp(14px, 4.5vw, 20px)" }}>
       {/* Streak summary + 14-day attendance row */}
-      <GlassCard style={{ padding: "18px 20px", marginBottom: "16px" }}>
+      <GlassCard data-tour="gym" style={{ padding: "18px 20px", marginBottom: "16px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
           <div>
             <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "var(--text-faint)", letterSpacing: "0.12em", fontWeight: 700, marginBottom: "4px" }}>
@@ -416,6 +418,12 @@ export function GymPage({ state, setState }) {
       </GlassCard>
 
       {/* Day Selector */}
+      <LockGate
+        signedIn={signedIn}
+        title="Weekly Split Planner"
+        note="Sign in to plan and switch your whole weekly split. You can still edit today below."
+        onSignIn={goToSignIn}
+      >
       <GlassCard style={{ padding: "16px", marginBottom: "16px" }} glow="#FBBF24">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
           <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "var(--text-faint)", letterSpacing: "0.12em", fontWeight: 700 }}>
@@ -498,11 +506,12 @@ export function GymPage({ state, setState }) {
           })}
         </div>
       </GlassCard>
+      </LockGate>
 
       {/* Split Name Input */}
       <GlassCard style={{ padding: "20px" }}>
         <Input
-          label={`${selectedDay.toUpperCase()} SPLIT`}
+          label={signedIn ? `${selectedDay.toUpperCase()} SPLIT` : "TODAY'S SPLIT"}
           value={currentSplit}
           onChange={(e) => updateSplit(e.target.value)}
           placeholder="e.g. Push, Pull, Legs, Rest..."

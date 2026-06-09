@@ -304,7 +304,7 @@ export function HabitsPage({ state, setState }) {
       </AnimatePresence>
 
       {/* ── Page title / summary ───────────────────────────────────── */}
-      <GlassCard style={{ padding: "20px 20px 18px", marginBottom: "16px" }}>
+      <GlassCard data-tour="habits" style={{ padding: "20px 20px 18px", marginBottom: "16px" }}>
         <div
           style={{
             display: "flex",

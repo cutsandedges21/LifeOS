@@ -238,7 +238,7 @@ export function FriendsPage({ hub, state, auth, setState }) {
 
 function PageHeader() {
   return (
-    <GlassCard style={{ padding: "20px", marginBottom: "16px" }}>
+    <GlassCard data-tour="friends" style={{ padding: "20px", marginBottom: "16px" }}>
       <div style={{ fontSize: "26px", fontWeight: 900, letterSpacing: "-0.02em", color: "var(--text)", lineHeight: 1.05, marginBottom: "6px" }}>
         Friends
       </div>

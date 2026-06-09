@@ -34,6 +34,10 @@ const INITIAL_STATE = {
   // to a boolean; false means the stat is withheld from friends (written as
   // NULL to the profile row). All on by default — see DEFAULT_SHARE_PREFS.
   sharePrefs: { ...DEFAULT_SHARE_PREFS },
+  // First-run guided tour. Set true once a signed-in user finishes/skips the
+  // tour so it never auto-shows again (synced). Anonymous users see it every
+  // load regardless — see shouldStartTour.
+  onboardingDone: false,
   workoutDay: "",
   whoop: { recovery: 0, sleep: 0, strain: 0, hrv: 0, rhr: 0, status: "gray", advice: "" },
   goals: [],

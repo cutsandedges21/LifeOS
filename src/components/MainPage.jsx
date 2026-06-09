@@ -95,9 +95,22 @@ export function MainPage({
         currentSleep={state.whoop?.sleep}
         currentNet={computeNetWorth(state)}
       />
-      <WeeklyReviewCard snapshots={state.historySnapshots} />
+      <LockGate
+        signedIn={signedIn}
+        title="Week in Review"
+        note="Sign in to unlock your weekly recap of streaks, sleep, and net worth."
+        onSignIn={goToSignIn}
+      >
+        <WeeklyReviewCard snapshots={state.historySnapshots} />
+      </LockGate>
 
       {/* Overseer Chat */}
+      <LockGate
+        signedIn={signedIn}
+        title="Overseer AI"
+        note="Sign in to chat with your AI guide and get personalized coaching."
+        onSignIn={goToSignIn}
+      >
       <GlassCard style={{ marginTop: "24px", padding: "20px" }}>
         <SectionLabel accent="var(--accent-main)" icon="✦">
           OVERSEER
@@ -363,6 +376,7 @@ export function MainPage({
           </motion.button>
         </div>
       </GlassCard>
+      </LockGate>
     </div>
   );
 }

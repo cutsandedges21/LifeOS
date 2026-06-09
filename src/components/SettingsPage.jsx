@@ -28,6 +28,7 @@ export function SettingsPage({
   syncStatus,
   lastSyncedAt,
   syncError,
+  onReplayTour,
 }) {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   // Which legal document is open as a full-screen overlay: 'privacy' | 'terms' | null.
@@ -37,7 +38,7 @@ export function SettingsPage({
 
   return (
     <div style={{ padding: "clamp(14px, 4.5vw, 20px)" }}>
-      <div style={{ fontSize: "32px", fontWeight: 900, marginBottom: "24px", letterSpacing: "-0.02em" }}>
+      <div data-tour="settings" style={{ fontSize: "32px", fontWeight: 900, marginBottom: "24px", letterSpacing: "-0.02em" }}>
         Settings
       </div>
 
@@ -84,6 +85,45 @@ export function SettingsPage({
         <div style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.5 }}>
           A soft tick when you tap buttons and controls. The first sound plays
           after your first interaction (a browser requirement).
+        </div>
+      </div>
+
+      {/* Tour — replay the first-run guided walkthrough */}
+      <div
+        style={{
+          background: "var(--card)",
+          backdropFilter: "blur(20px)",
+          borderRadius: "24px",
+          padding: "20px",
+          marginBottom: "16px",
+          border: "1px solid var(--border)",
+        }}
+      >
+        <div style={{ fontSize: "11px", fontWeight: 700, marginBottom: "16px", color: "var(--text-faint)", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
+          TOUR
+        </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+          <div style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.5, flex: 1 }}>
+            Take the guided walkthrough of every section again.
+          </div>
+          <button
+            onClick={() => onReplayTour?.()}
+            style={{
+              flexShrink: 0,
+              padding: "10px 16px",
+              borderRadius: "12px",
+              border: "1px solid rgba(var(--accent-main-rgb), 0.5)",
+              background: "linear-gradient(135deg, var(--accent-main), rgba(var(--accent-main-rgb), 0.78))",
+              color: "#fff",
+              fontSize: "13px",
+              fontWeight: 800,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              boxShadow: "0 4px 18px rgba(var(--accent-main-rgb), 0.35)",
+            }}
+          >
+            Replay tour
+          </button>
         </div>
       </div>
 
