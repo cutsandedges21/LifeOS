@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { storage, STORAGE_KEYS } from "../utils/storage.js";
 import { getSupabase } from "../utils/supabase.js";
 import { useAuth } from "./useAuth.js";
+import { isSignedIn } from "../utils/auth.js";
 import {
   computeSharedStats,
   upsertMyProfile,
@@ -169,6 +170,13 @@ export const useLifeOSState = () => {
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
   const [syncError, setSyncError] = useState(null);
 
+  // Signed-out is purely in-memory: persistence (localStorage + cloud) is gated
+  // on this. Mirrored into a ref so the once-bound lifecycle flush below can read
+  // the latest value without re-binding listeners.
+  const signedIn = isSignedIn(auth);
+  const signedInRef = useRef(signedIn);
+  signedInRef.current = signedIn;
+
   // Latest state mirrored into a ref so the lifecycle flush handlers below
   // can persist current data without re-binding listeners on every change.
   const stateRef = useRef(state);
@@ -178,12 +186,17 @@ export const useLifeOSState = () => {
   useEffect(() => {
     // Wait until auth status is known before flipping isLoaded — if a user
     // is signed in, we want to pull cloud state first to avoid the local→cloud
-    // flicker. If they're anon, we're done.
+    // flicker. The signed-in branch is handled by the cloud-pull effect below.
     if (auth.status === "loading") return;
     if (auth.status === "anon") {
+      // Signed-out is ephemeral: always start from zero and never leave anything
+      // on the device. This fires both on a cold load with no session and on
+      // sign-out (signed-in → anon). Keyed on auth.status, so it runs once per
+      // entry into anon and doesn't wipe in-session anonymous edits as they type.
+      setState(INITIAL_STATE);
+      storage.remove(STORAGE_KEYS.STATE);
       setIsLoaded(true);
     }
-    // signed-in branch is handled by the cloud-pull effect below.
   }, [auth.status]);
 
   // ── Cloud pull on sign-in ────────────────────────────────────────────
@@ -238,11 +251,13 @@ export const useLifeOSState = () => {
   // the user backgrounds the app mid-debounce.
   useEffect(() => {
     if (!isLoaded) return;
+    // Signed-out is in-memory only — never write to the device.
+    if (!signedIn) return;
     const t = setTimeout(() => {
       storage.set(STORAGE_KEYS.STATE, state);
     }, 400);
     return () => clearTimeout(t);
-  }, [state, isLoaded]);
+  }, [state, isLoaded, signedIn]);
 
   // ── Debounced cloud sync (when signed in) ────────────────────────────
   // Mirrors the localStorage debounce but writes to Supabase. Skipped when
@@ -295,7 +310,11 @@ export const useLifeOSState = () => {
   // ref above, so this doesn't reattach on every state change.
   useEffect(() => {
     if (!isLoaded) return;
-    const flush = () => storage.set(STORAGE_KEYS.STATE, stateRef.current);
+    // Only persist for signed-in users; signed-out is in-memory only. Read the
+    // latest signed-in value from the ref since these listeners bind once.
+    const flush = () => {
+      if (signedInRef.current) storage.set(STORAGE_KEYS.STATE, stateRef.current);
+    };
     const onVisibility = () => {
       if (document.visibilityState === "hidden") flush();
     };
