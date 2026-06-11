@@ -20,6 +20,9 @@ import { Clock } from "./components/Clock.jsx";
 import { LegalPage } from "./components/LegalPage.jsx";
 import { Toggle } from "./components/UI.jsx";
 import { legalDocs } from "./content/legal.js";
+import { AdminPage } from "./components/AdminPage.jsx";
+import { usePresence } from "./hooks/usePresence.js";
+import { isAdmin } from "./utils/admin.js";
 import { useClickSound } from "./hooks/useClickSound.js";
 import { playClick } from "./utils/sound.js";
 import { getPageAccent, getPageTint, cssVarsForTheme } from "./theme/index.js";
@@ -155,6 +158,14 @@ const SettingsIcon = () => (
   </svg>
 );
 
+// Admin / shield icon — owner-only entry in the center of the nav.
+const AdminIcon = () => (
+  <svg width="22" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    <path d="m9 12 2 2 4-4" />
+  </svg>
+);
+
 // Streak = number of consecutive days ending today that have a gym visit.
 // Walking backward from today, count each day with a matching entry in
 // gymVisits[{date}]. The first gap (no visit) ends the streak. A skip counts
@@ -191,6 +202,10 @@ export default function LifeOS() {
   // Friends hub — mounted here (not in FriendsPage) so realtime notifications
   // fire on any tab and the nav badge can read the pending-request count.
   const friendsHub = useFriends(auth);
+  // Heartbeat: keep this user's last_seen_at fresh while the tab is visible.
+  usePresence(auth);
+  // Owner-only admin gate (cosmetic on the client; enforced by RLS server-side).
+  const admin = isAdmin(auth?.user);
   const [tab, setTab] = useState("main");
   const [time, setTime] = useState(new Date());
   const [overseerLoading, setOverseerLoading] = useState(false);
@@ -245,6 +260,12 @@ export default function LifeOS() {
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
+
+  // Belt-and-suspenders: if a non-admin ever lands on the admin tab, bounce
+  // them home. RLS already returns them zero foreign data regardless.
+  useEffect(() => {
+    if (tab === "admin" && !admin) setTab("main");
+  }, [tab, admin]);
 
   // Global click sounds — one document-level listener ticks on any control
   // press while enabled (default on; muted from Settings → Sound).
@@ -747,6 +768,7 @@ export default function LifeOS() {
     habits: "#A855F7",
     friends: "#60A5FA",
     settings: "#94A3B8",
+    admin: "#F5C451",
   };
 
   if (!isLoaded) {
@@ -922,6 +944,7 @@ export default function LifeOS() {
                 onReplayTour={startTour}
               />
             )}
+            {tab === "admin" && admin && <AdminPage auth={auth} />}
           </motion.div>
         </AnimatePresence>
       </main>
@@ -938,6 +961,7 @@ export default function LifeOS() {
       <CircleMenu
         activeId={tab}
         onSelect={setTab}
+        centerItem={admin ? { id: "admin", label: "Admin", icon: <AdminIcon />, color: pageAccents.admin } : undefined}
         items={[
           { id: "health", label: "Sleep", icon: <ZzzIcon />, color: "#F87171", labelAbove: true, labelLeftSide: true },
           { id: "finances", label: "Finances", icon: <FinIcon />, color: "#34D399", labelAbove: true, labelLeftSide: true },
