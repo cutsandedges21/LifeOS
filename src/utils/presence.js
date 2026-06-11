@@ -9,7 +9,10 @@ export const ONLINE_WINDOW_MS = 2 * 60 * 1000; // seen within 2 min == online
 export function isOnline(lastSeenAt, now = Date.now()) {
   if (!lastSeenAt) return false;
   const t = new Date(lastSeenAt).getTime();
-  return Number.isFinite(t) && now - t < ONLINE_WINDOW_MS;
+  if (!Number.isFinite(t)) return false;
+  const diff = now - t;
+  // diff >= 0 guards a clock-skewed future timestamp from reading as "online".
+  return diff >= 0 && diff < ONLINE_WINDOW_MS;
 }
 
 // Human-friendly "last online" label for offline users.
@@ -17,7 +20,9 @@ export function relativeLastSeen(lastSeenAt, now = Date.now()) {
   if (!lastSeenAt) return "Never";
   const t = new Date(lastSeenAt).getTime();
   if (!Number.isFinite(t)) return "Never";
-  const diff = now - t;
+  // Clamp so a future (clock-skewed) timestamp degrades to "just now", not a
+  // negative interval that would mislabel the bucket.
+  const diff = Math.max(0, now - t);
   if (diff < 60 * 1000) return "just now";
   const min = Math.floor(diff / (60 * 1000));
   if (min < 60) return `${min}m ago`;

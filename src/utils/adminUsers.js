@@ -21,7 +21,8 @@ export function summarize(users, now = Date.now()) {
     if (isOnline(u.last_seen_at, now)) onlineNow++;
     if (u.last_seen_at) {
       const t = new Date(u.last_seen_at).getTime();
-      if (Number.isFinite(t) && now - t < DAY) activeToday++;
+      const diff = now - t;
+      if (Number.isFinite(t) && diff >= 0 && diff < DAY) activeToday++;
     }
   }
   return { total: list.length, onlineNow, activeToday };

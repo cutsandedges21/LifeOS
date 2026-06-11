@@ -23,6 +23,10 @@ test("a malformed timestamp is offline", () => {
   assert.equal(isOnline("not-a-date", NOW), false);
 });
 
+test("a future (clock-skewed) timestamp is offline", () => {
+  assert.equal(isOnline(new Date(NOW + 10 * 1000).toISOString(), NOW), false);
+});
+
 test("relativeLastSeen: sub-minute reads 'just now'", () => {
   assert.equal(relativeLastSeen(ago(5 * 1000), NOW), "just now");
 });
@@ -41,4 +45,12 @@ test("relativeLastSeen: days", () => {
 
 test("relativeLastSeen: null reads 'Never'", () => {
   assert.equal(relativeLastSeen(null, NOW), "Never");
+});
+
+test("relativeLastSeen: malformed timestamp reads 'Never'", () => {
+  assert.equal(relativeLastSeen("not-a-date", NOW), "Never");
+});
+
+test("relativeLastSeen: future timestamp reads 'just now'", () => {
+  assert.equal(relativeLastSeen(new Date(NOW + 10 * 1000).toISOString(), NOW), "just now");
 });
