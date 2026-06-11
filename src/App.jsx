@@ -380,9 +380,26 @@ export default function LifeOS() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, time.toDateString(), state.gymVisits]);
 
-  // Goals (the To-Do list) intentionally do NOT reset daily. The list is a
-  // persistent to-do list now: items stay until the user completes or removes
-  // them. (Previously this cleared state.goals at midnight — removed by request.)
+  // Goals (the To-Do list): unfinished items carry over day to day, but
+  // COMPLETED items are cleared at the start of each new local day so finished
+  // to-dos don't pile up. Stamped via lastGoalsReset so it fires once per day
+  // (and re-fires at midnight when time.toDateString() rolls over).
+  useEffect(() => {
+    if (!isLoaded) return;
+    const today = todayISO();
+    if (state.lastGoalsReset === today) return;
+
+    setState((prev) => {
+      const goals = prev.goals || [];
+      const remaining = goals.filter((g) => !g.done);
+      // Always stamp the day; only rewrite goals when something was cleared.
+      if (remaining.length === goals.length) {
+        return { ...prev, lastGoalsReset: today };
+      }
+      return { ...prev, goals: remaining, lastGoalsReset: today };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, time.toDateString()]);
 
   // Overseer message limit reset — resets message count at the start of each new day.
   useEffect(() => {
