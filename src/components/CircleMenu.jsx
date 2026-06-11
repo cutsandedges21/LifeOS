@@ -26,6 +26,12 @@ const FALL_EASE = [0.55, 0.06, 0.78, 0.32];
 // top: 80% of the wrapper, so the trigger center sits 20% of containerSize below.
 const FALL_Y = CONSTANTS.containerSize * 0.2;
 
+// Center button rests partway up the open semicircle — in the empty space
+// between the trigger and the arc. Radius mirrors the arc radius MenuItem uses;
+// 0.38 sits it a bit lower (closer to the trigger) within that free area.
+// Module-scope (like FALL_Y) since it never varies for the page lifetime.
+const CENTER_Y = -((CONSTANTS.containerSize / 2 - CONSTANTS.itemSize / 2) * 0.38);
+
 // The dimmed item bg picks up the theme's surface tint via CSS var, so
 // inactive menu items sit nicely on both dark and light backdrops.
 const MUTED = "var(--card-mid)";
@@ -202,8 +208,6 @@ function MenuItem({ item, index, totalItems, isOpen, isActive, onSelect }) {
 // distinctly. Used for the owner-only Admin entry.
 const CENTER_ITEM_SIZE = 50;
 function CenterMenuItem({ item, isOpen, isActive, onSelect }) {
-  const r = CONSTANTS.containerSize / 2 - CONSTANTS.itemSize / 2;
-  const CENTER_Y = -(r * 0.45);
   const [hovering, setHovering] = useState(false);
 
   return (
@@ -383,7 +387,13 @@ export function CircleMenu({ items, activeId, onSelect, centerItem }) {
   const animate = useAnimationControls();
 
   const visibleItems = items.filter((it) => !it.hidden);
-  const activeItem = visibleItems.find((it) => it.id === activeId) || visibleItems[0];
+  // The center button isn't part of the arc, so include it when resolving the
+  // active item — otherwise the closed trigger shows the wrong icon/color while
+  // the admin tab is active.
+  const activeItem =
+    (centerItem && centerItem.id === activeId && centerItem) ||
+    visibleItems.find((it) => it.id === activeId) ||
+    visibleItems[0];
   // Any non-active item with a badge → show the closed-state dot on the trigger.
   const hasNotify = visibleItems.some((it) => (it.badge || 0) > 0 && it.id !== activeId);
 
