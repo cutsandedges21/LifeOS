@@ -43,8 +43,14 @@ export function AdminPage({ auth }) {
   const [summary, setSummary] = useState({ total: 0, onlineNow: 0, activeToday: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // `now` is pinned at load time (not render time) so the stat-card counts and
+  // the per-user online dots are always derived from the exact same instant.
+  const [now, setNow] = useState(() => Date.now());
 
-  const load = useCallback(async () => {
+  // showSpinner: true for the initial load and explicit Refresh/Retry; false
+  // for the 30s background poll so the populated list never flickers away.
+  const load = useCallback(async (showSpinner = false) => {
+    if (showSpinner) setLoading(true);
     const supabase = getSupabase();
     if (!supabase) {
       setError("Cloud sync not configured.");
@@ -53,17 +59,18 @@ export function AdminPage({ auth }) {
     }
     try {
       const rows = await fetchAllUsers(supabase);
-      const now = Date.now();
+      const loadNow = Date.now();
       rows.sort((a, b) => {
-        const ao = isOnline(a.last_seen_at, now) ? 1 : 0;
-        const bo = isOnline(b.last_seen_at, now) ? 1 : 0;
+        const ao = isOnline(a.last_seen_at, loadNow) ? 1 : 0;
+        const bo = isOnline(b.last_seen_at, loadNow) ? 1 : 0;
         if (ao !== bo) return bo - ao;
         const at = a.last_seen_at ? new Date(a.last_seen_at).getTime() : 0;
         const bt = b.last_seen_at ? new Date(b.last_seen_at).getTime() : 0;
         return bt - at;
       });
       setUsers(rows);
-      setSummary(summarize(rows, now));
+      setSummary(summarize(rows, loadNow));
+      setNow(loadNow);
       setError(null);
     } catch (e) {
       setError(e?.message || "Failed to load users.");
@@ -73,12 +80,10 @@ export function AdminPage({ auth }) {
   }, []);
 
   useEffect(() => {
-    load();
-    const t = setInterval(load, REFRESH_MS);
+    load(true);
+    const t = setInterval(() => load(), REFRESH_MS);
     return () => clearInterval(t);
   }, [load]);
-
-  const now = Date.now();
 
   return (
     <motion.div
@@ -91,7 +96,7 @@ export function AdminPage({ auth }) {
           Admin <span style={{ color: GOLD }}>·</span> Users
         </h1>
         <button
-          onClick={load}
+          onClick={() => load(true)}
           style={{ background: "var(--card)", border: "1px solid var(--border)", color: "var(--text-muted)", borderRadius: 12, padding: "6px 12px", fontSize: 12, cursor: "pointer" }}
         >
           Refresh
@@ -109,7 +114,7 @@ export function AdminPage({ auth }) {
       {error && !loading && (
         <div style={{ background: "var(--card)", border: "1px solid #F8717155", borderRadius: 14, padding: 14, color: "#F87171", fontSize: 13 }}>
           {error}
-          <button onClick={load} style={{ marginLeft: 8, textDecoration: "underline", background: "none", border: "none", color: "#F87171", cursor: "pointer" }}>Retry</button>
+          <button onClick={() => load(true)} style={{ marginLeft: 8, textDecoration: "underline", background: "none", border: "none", color: "#F87171", cursor: "pointer" }}>Retry</button>
         </div>
       )}
 

@@ -18,6 +18,7 @@ const sharedPageAccents = {
   gym:      "#FBBF24",
   brand:    "#22D3EE",
   settings: "#94A3B8",
+  admin:    "#F5C451",
 };
 
 // ── Spacing ───────────────────────────────────────────────────────────
