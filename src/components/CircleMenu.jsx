@@ -197,6 +197,94 @@ function MenuItem({ item, index, totalItems, isOpen, isActive, onSelect }) {
   );
 }
 
+// Center button — rendered in the empty middle of the open semicircle.
+// Driven separately from arc items (fixed x=0, fixed center y) and styled
+// distinctly. Used for the owner-only Admin entry.
+const CENTER_ITEM_SIZE = 50;
+function CenterMenuItem({ item, isOpen, isActive, onSelect }) {
+  const r = CONSTANTS.containerSize / 2 - CONSTANTS.itemSize / 2;
+  const CENTER_Y = -(r * 0.45);
+  const [hovering, setHovering] = useState(false);
+
+  return (
+    <div style={{ position: "absolute", top: "80%", left: "51%", width: 0, height: 0, pointerEvents: "none" }}>
+      <motion.button
+        onClick={() => onSelect(item.id)}
+        onMouseEnter={() => setHovering(true)}
+        onMouseLeave={() => setHovering(false)}
+        animate={{
+          x: 0,
+          y: isOpen ? CENTER_Y : FALL_Y,
+          opacity: isOpen ? 1 : 0,
+          scale: isOpen ? 1 : 0.35,
+        }}
+        whileHover={{ scale: 1.12, transition: { duration: 0.12 } }}
+        whileTap={{ scale: 0.92 }}
+        transition={
+          isOpen
+            ? { delay: 0.06, type: "spring", stiffness: 320, damping: 28 }
+            : { duration: 0.4, ease: FALL_EASE }
+        }
+        style={{
+          position: "absolute",
+          left: -(CENTER_ITEM_SIZE / 2),
+          top: -(CENTER_ITEM_SIZE / 2),
+          width: CENTER_ITEM_SIZE,
+          height: CENTER_ITEM_SIZE,
+          borderRadius: "50%",
+          background: isActive ? item.color : "var(--card-mid)",
+          ...(IS_MOBILE
+            ? {}
+            : { backdropFilter: "blur(20px) saturate(180%)", WebkitBackdropFilter: "blur(20px) saturate(180%)" }),
+          color: isActive ? "#1A1206" : item.color,
+          border: `1.5px solid ${item.color}`,
+          boxShadow: `0 0 24px ${item.color}80, 0 6px 18px rgba(0,0,0,0.45)`,
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          pointerEvents: isOpen ? "auto" : "none",
+          outline: "none",
+        }}
+      >
+        {item.icon}
+        <AnimatePresence>
+          {hovering && isOpen && (
+            <motion.span
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.15 }}
+              style={{
+                position: "absolute",
+                top: "100%",
+                marginTop: 8,
+                left: "50%",
+                transform: "translateX(-50%)",
+                fontSize: 9,
+                fontFamily: "var(--font-mono)",
+                color: "#F8FAFF",
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+                whiteSpace: "nowrap",
+                pointerEvents: "none",
+                background: "rgba(0,0,0,0.75)",
+                padding: "4px 8px",
+                borderRadius: 8,
+                border: "1px solid rgba(255,255,255,0.08)",
+                zIndex: 100,
+                boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
+              }}
+            >
+              {item.label}
+            </motion.span>
+          )}
+        </AnimatePresence>
+      </motion.button>
+    </div>
+  );
+}
+
 function MenuTrigger({ isOpen, setIsOpen, closeAnimationCallback, activeColor, activeIcon, notify }) {
   const animate = useAnimationControls();
 
@@ -290,7 +378,7 @@ function MenuTrigger({ isOpen, setIsOpen, closeAnimationCallback, activeColor, a
   );
 }
 
-export function CircleMenu({ items, activeId, onSelect }) {
+export function CircleMenu({ items, activeId, onSelect, centerItem }) {
   const [isOpen, setIsOpen] = useState(false);
   const animate = useAnimationControls();
 
@@ -413,6 +501,14 @@ export function CircleMenu({ items, activeId, onSelect }) {
                 onSelect={handleSelect}
               />
             ))}
+            {centerItem && (
+              <CenterMenuItem
+                item={centerItem}
+                isOpen={isOpen}
+                isActive={centerItem.id === activeId}
+                onSelect={handleSelect}
+              />
+            )}
           </motion.div>
         </div>
       </div>
